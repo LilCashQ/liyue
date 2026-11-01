@@ -1,0 +1,25 @@
+LiYue (里悦) third-party notices
+=================================
+
+This application is distributed under the GNU General Public License v3.0.
+See LICENSE for the full text.
+
+cubiomes
+--------
+Source: https://github.com/xpple/cubiomes (fork of https://github.com/Cubitect/cubiomes)
+Revision: a49d5bc5b709e6e28b5a74daddb3efb382fba7bb
+License: MIT (see core/seedgen/src/main/cpp/cubiomes/LICENSE)
+Usage: biome, structure, spawn, slime-chunk and terrain generation.
+
+Axolotl Launcher
+----------------
+Source: https://github.com/Mystic-Stars/Axolotl
+License: GPL-3.0
+Usage: LiYue vendors the seed map C bridge (cubiomes_bridge.c/.h) from this
+project, compiled unchanged, and exposes parts of it through JNI. The Android
+UI is written independently with Jetpack Compose.
+
+Minecraft
+---------
+Minecraft is a trademark of Mojang Synergies AB. This project is not
+affiliated with or endorsed by Mojang or Microsoft.

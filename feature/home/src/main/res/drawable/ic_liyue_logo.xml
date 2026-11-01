@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- rounded background -->
+    <path
+        android:fillColor="#0F2A1A"
+        android:pathData="M20,4h68a16,16 0 0 1 16,16v68a16,16 0 0 1 -16,16h-68a16,16 0 0 1 -16,-16v-68a16,16 0 0 1 16,-16z" />
+    <!-- grass block: top -->
+    <path
+        android:fillColor="#5BC85E"
+        android:pathData="M54,28L86,44L54,60L22,44Z" />
+    <!-- grass block: left -->
+    <path
+        android:fillColor="#3E9B45"
+        android:pathData="M22,44L54,60V90L22,74Z" />
+    <!-- grass block: right -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M86,44L54,60V90L86,74Z" />
+    <!-- soil band left -->
+    <path
+        android:fillColor="#8D5A3B"
+        android:pathData="M22,58L54,74V90L22,74Z" />
+    <!-- soil band right -->
+    <path
+        android:fillColor="#6E442C"
+        android:pathData="M86,58L54,74V90L86,74Z" />
+    <!-- grass fringe -->
+    <path
+        android:fillColor="#7FE083"
+        android:pathData="M22,44L54,60L54,66L22,50Z" />
+    <path
+        android:fillColor="#63C968"
+        android:pathData="M86,44L54,60L54,66L86,50Z" />
+    <!-- pickaxe handle -->
+    <path
+        android:fillColor="#C98B4B"
+        android:pathData="M74,88L78,88L96,50L92,48Z" />
+    <!-- pickaxe head -->
+    <path
+        android:fillColor="#D8DEE6"
+        android:pathData="M86,44C92,44 98,48 101,54L96,57C93,51 89,49 84,49Z" />
+    <path
+        android:fillColor="#AEB7C2"
+        android:pathData="M84,49C89,49 93,51 96,57L92,59C89,54 86,52 82,52Z" />
+    <!-- location pin -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M54,8a10,10 0 0 1 10,10c0,8 -10,18 -10,18s-10,-10 -10,-18a10,10 0 0 1 10,-10z" />
+    <path
+        android:fillColor="#0F2A1A"
+        android:pathData="M54,13a5,5 0 1 0 0,10a5,5 0 0 0 0,-10z" />
+</vector>
