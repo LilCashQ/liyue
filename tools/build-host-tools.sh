@@ -9,20 +9,30 @@ CC="${CC:-cc}"
 
 mkdir -p "$OUT"
 
+# Keep this list in sync with core/seedgen/src/main/cpp/CMakeLists.txt.
 SOURCES=(
     "$CUBIOMES/biomenoise.c"
     "$CUBIOMES/biomes.c"
+    "$CUBIOMES/carver.c"
     "$CUBIOMES/finders.c"
     "$CUBIOMES/generator.c"
     "$CUBIOMES/layers.c"
     "$CUBIOMES/noise.c"
     "$CUBIOMES/quadbase.c"
+    "$CUBIOMES/terrainnoise.c"
     "$CUBIOMES/util.c"
+    "$CUBIOMES/xradv.c"
+    "$CUBIOMES/features/abandoned_camp.c"
+    "$CUBIOMES/features/end_city.c"
+    "$CUBIOMES/features/fortress.c"
+    "$CUBIOMES/features/ore.c"
+    "$CUBIOMES/features/stronghold.c"
 )
 
 "$CC" -O2 -std=c11 -I"$CUBIOMES" "$ROOT/tools/refgen/refgen.c" "${SOURCES[@]}" -o "$OUT/refgen" -lm
 "$CC" -O2 -std=c11 -I"$CUBIOMES" "$ROOT/tools/refgen/refgrid.c" "${SOURCES[@]}" -o "$OUT/refgrid" -lm
 "$CC" -O2 -std=c11 -I"$CUBIOMES" "$ROOT/tools/refgen/refpoints.c" "${SOURCES[@]}" -o "$OUT/refpoints" -lm
+"$CC" -O2 -std=c11 -I"$CUBIOMES" "$ROOT/tools/refgen/refstruct.c" "${SOURCES[@]}" -o "$OUT/refstruct" -lm
 "$CC" -O2 -std=c11 -I"$CUBIOMES" "$ROOT/tools/capmatrix/capmatrix.c" "${SOURCES[@]}" -o "$OUT/capmatrix" -lm
 
 # cubiomes' own regression test, with its main renamed so check.c drives it.
@@ -33,4 +43,4 @@ SOURCES=(
 "$CC" "$OUT/upstream-check.o" "$OUT/upstream-tests.o" "${SOURCES[@]}" \
     -o "$OUT/upstream-check" -lm
 
-echo "built: $OUT/refgen $OUT/refgrid $OUT/refpoints $OUT/capmatrix $OUT/upstream-check"
+echo "built: $OUT/refgen $OUT/refgrid $OUT/refpoints $OUT/refstruct $OUT/capmatrix $OUT/upstream-check"

@@ -106,3 +106,115 @@ Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_seedMapCapability(JNIEnv *env, jo
         return 0;
     return axolotl_seed_map_capability(mc, capability, value);
 }
+
+/*
+ * Ore scan for one chunk. `kind` selects the ore group (see ore_groups in the
+ * bridge); `out` receives (x, y, z) triples and the return value is the number
+ * of blocks written. Unsupported combinations yield 0 instead of an error.
+ */
+JNIEXPORT jint JNICALL
+Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_scanOres(JNIEnv *env, jobject thiz,
+    jlong seed, jint version, jint dimension, jint chunkX, jint chunkZ,
+    jint kind, jintArray out)
+{
+    (void)thiz;
+    int mc = liyue_mc_version(version);
+    if (mc < 0 || out == NULL)
+        return -1;
+    int capacity = (*env)->GetArrayLength(env, out) / 3;
+    if (capacity <= 0)
+        return -1;
+
+    int32_t *buffer = (int32_t *)malloc(sizeof(int32_t) * 3 * (size_t)capacity);
+    if (buffer == NULL)
+        return -1;
+
+    size_t count = axolotl_seed_map_scan_ores(
+        (uint64_t)seed, mc, 0, dimension, chunkX, chunkZ, kind, buffer, (size_t)capacity);
+    if (count > (size_t)capacity)
+        count = (size_t)capacity;
+
+    jint *dst = (*env)->GetPrimitiveArrayCritical(env, out, NULL);
+    if (dst == NULL) {
+        free(buffer);
+        return -1;
+    }
+    for (size_t i = 0; i < count * 3; i++)
+        dst[i] = (jint)buffer[i];
+    (*env)->ReleasePrimitiveArrayCritical(env, out, dst, 0);
+    free(buffer);
+    return (jint)count;
+}
+
+/* Biome id at a block position through the Axolotl path (raw Y, no scaling). */
+JNIEXPORT jint JNICALL
+Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_biomeAtRaw(JNIEnv *env, jobject thiz,
+    jlong seed, jint version, jint dimension, jint x, jint y, jint z)
+{
+    (void)env;
+    (void)thiz;
+    int mc = liyue_mc_version(version);
+    if (mc < 0)
+        return -1;
+    return axolotl_seed_map_biome_at((uint64_t)seed, mc, 0, dimension, x, y, z);
+}
+
+/*
+ * Structure details as a JSON document (see cubiomes_details.c). Returns NULL
+ * when the version is unknown or the bridge cannot describe the position; the
+ * caller receives a Java string and the native buffer is freed here.
+ */
+JNIEXPORT jstring JNICALL
+Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_structureDetails(JNIEnv *env, jobject thiz,
+    jlong seed, jint version, jint dimension, jint x, jint z,
+    jint featureBit, jint container)
+{
+    (void)thiz;
+    int mc = liyue_mc_version(version);
+    if (mc < 0 || featureBit <= 0)
+        return NULL;
+
+    char *json = axolotl_seed_map_structure_details(
+        (uint64_t)seed, mc, 0, dimension, x, z, (uint32_t)featureBit, container);
+    if (json == NULL)
+        return NULL;
+
+    jstring result = (*env)->NewStringUTF(env, json);
+    axolotl_seed_map_free_result(json);
+    return result;
+}
+
+/*
+ * Renders one underground tile as RGBA. `layers` is a 3-bit mask: 1 = solid
+ * blocks, 2 = carved caves, 4 = carved canyons. Width/height must be multiples
+ * of 16 and at most 64.
+ */
+JNIEXPORT jint JNICALL
+Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_undergroundTile(JNIEnv *env, jobject thiz,
+    jlong seed, jint version, jint dimension,
+    jint scale, jint x, jint z, jint width, jint height, jint y, jint layers,
+    jbyteArray outRgba)
+{
+    (void)thiz;
+    int mc = liyue_mc_version(version);
+    if (mc < 0 || outRgba == NULL)
+        return -1;
+    jsize length = (*env)->GetArrayLength(env, outRgba);
+    jsize needed = (jsize)(width * height * 4);
+    if (width <= 0 || height <= 0 || length < needed)
+        return -1;
+
+    jbyte *rgba = (*env)->GetByteArrayElements(env, outRgba, NULL);
+    if (rgba == NULL)
+        return -1;
+
+    /* The bridge requires the buffer length to match the tile exactly, so
+     * hand it the computed size instead of the whole Java array. */
+    int status = axolotl_seed_map_underground(
+        (uint64_t)seed, mc, 0, dimension,
+        x, z, scale, width, height, y, (uint32_t)layers,
+        (uint8_t *)rgba, (uint64_t)needed);
+
+    (*env)->ReleaseByteArrayElements(env, outRgba, rgba, 0);
+    return status;
+}

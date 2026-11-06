@@ -51,6 +51,9 @@ data class LegendEntry(val id: Int, val name: String, val color: androidx.compos
 
 data class StructureMarker(val type: StructureType, val x: Int, val z: Int)
 
+/** One ore block drawn on the map, tagged with the ore it belongs to. */
+data class OreMarker(val kind: com.liyue.mctoolbox.seedgen.OreKind, val x: Int, val y: Int, val z: Int)
+
 data class MapUiState(
     val seedText: String = "0",
     val seed: Long = 0L,
@@ -65,8 +68,30 @@ data class MapUiState(
     val enabledStructures: Set<StructureType> = StructureType.defaultEnabled,
     val structures: List<StructureMarker> = emptyList(),
     val structuresLoading: Boolean = false,
+    val oreKind: com.liyue.mctoolbox.seedgen.OreKind? = null,
+    val oreMarkers: List<OreMarker> = emptyList(),
+    val oreLoading: Boolean = false,
+    val oreScannedChunks: Int = 0,
     val spawnPoint: com.liyue.mctoolbox.seedgen.StructurePos? = null,
-    val highlightBiomeId: Int? = null,
+    /** Structure whose detail sheet is open, if any. */
+    val detailsTarget: StructureMarker? = null,
+    val details: StructureDetails? = null,
+    val detailsLoading: Boolean = false,
+    /** Resolved display name for the biome the structure spawned in. */
+    val detailsBiomeName: String? = null,
+    /** Y level of the underground preview slice. */
+    val undergroundY: Int = 15,
+    /** Bit mask: 1 = solid blocks, 2 = caves, 4 = ravines. */
+    val undergroundLayers: Int = 7,
+    val underground: ImageBitmap? = null,
+    val undergroundLoading: Boolean = false,
+    /** Side length, in blocks, of the rendered underground slice. */
+    val undergroundSpan: Int = 512,
+    val undergroundOriginX: Int = 0,
+    val undergroundOriginZ: Int = 0,
+    val helpVisible: Boolean = false,
+    /** Biomes highlighted on the map; any number can be active at once. */
+    val highlightBiomeIds: Set<Int> = emptySet(),
     val terrainEnabled: Boolean = false,
     val gridEnabled: Boolean = true,
     val layersClipped: Boolean = false,

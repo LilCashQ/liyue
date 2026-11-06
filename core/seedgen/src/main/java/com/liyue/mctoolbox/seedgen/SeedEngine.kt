@@ -183,6 +183,57 @@ class SeedEngine(
         }
     }
 
+    /**
+     * Bedrock Edition structure search inside a block-space box. Bedrock rolls
+     * its regions with a Mersenne Twister instead of the Java LCG, so the
+     * feature mask is expanded one type at a time. Types the Bedrock generator
+     * cannot place are skipped instead of approximated.
+     */
+    fun bedrockFeaturesBlocking(
+        seed: Long,
+        version: McVersion,
+        dimension: Dimension,
+        minBlockX: Int,
+        minBlockZ: Int,
+        maxBlockX: Int,
+        maxBlockZ: Int,
+        featureMask: Int,
+        maxCount: Int = 4096,
+    ): List<FeatureHit> {
+        val bits = BEDROCK_FEATURES.filter { featureMask and it != 0 }
+        if (bits.isEmpty()) return emptyList()
+        val result = ArrayList<FeatureHit>(minOf(maxCount, 256))
+        val out = IntArray(4096)
+        for (bit in bits) {
+            val want = maxCount - result.size
+            if (want <= 0) break
+            val count = NativeSeedgen.bedrockFeatures(
+                seed = seed,
+                version = version.id,
+                dimension = dimension.id,
+                feature = bit,
+                minX = minBlockX,
+                minZ = minBlockZ,
+                maxX = maxBlockX,
+                maxZ = maxBlockZ,
+                out = out,
+            )
+            if (count <= 0) continue
+            for (i in 0 until minOf(count, want)) {
+                result.add(FeatureHit(x = out[i * 2], z = out[i * 2 + 1], kind = bit, endShip = false))
+            }
+        }
+        return result
+    }
+
+    /** Bedrock strongholds: a ring around the origin instead of Java's concentric placing. */
+    fun bedrockStrongholdsBlocking(seed: Long): List<Pair<Int, Int>> {
+        val out = IntArray(6)
+        val count = NativeSeedgen.bedrockStrongholds(seed, out)
+        if (count <= 0) return emptyList()
+        return (0 until count).map { out[it * 2] to out[it * 2 + 1] }
+    }
+
     fun renderTileBlocking(
         seed: Long,
         version: McVersion,
@@ -224,6 +275,43 @@ class SeedEngine(
         return (0 until count).map { StructurePos(out[it * 2], out[it * 2 + 1]) }
     }
 
+    /**
+     * Scans one chunk for one ore kind. Returns the individual ore blocks, or
+     * an empty list when the ore does not exist in this version/dimension.
+     */
+    fun oreScanBlocking(
+        seed: Long,
+        version: McVersion,
+        dimension: Dimension,
+        chunkX: Int,
+        chunkZ: Int,
+        kind: OreKind,
+        maxBlocks: Int = 4096,
+    ): List<OreBlock> {
+        val out = IntArray(maxBlocks * 3)
+        val count = NativeSeedgen.scanOres(
+            seed = seed,
+            version = version.id,
+            dim = dimension.id,
+            chunkX = chunkX,
+            chunkZ = chunkZ,
+            kind = kind.group,
+            out = out,
+        )
+        if (count <= 0) return emptyList()
+        return (0 until count).map { OreBlock(out[it * 3], out[it * 3 + 1], out[it * 3 + 2]) }
+    }
+
+    /** Raw-Y biome sample (block coordinates, no 1:4 scaling). */
+    fun biomeAtRawBlocking(
+        seed: Long,
+        version: McVersion,
+        dimension: Dimension,
+        x: Int,
+        y: Int,
+        z: Int,
+    ): Int = NativeSeedgen.biomeAtRaw(seed, version.id, dimension.id, x, y, z)
+
     fun spawnPointBlocking(seed: Long, version: McVersion): StructurePos? {
         val out = IntArray(2)
         return if (NativeSeedgen.spawnPoint(seed, version.id, out) == 0) {
@@ -233,7 +321,78 @@ class SeedEngine(
         }
     }
 
+    /**
+     * Structure details as a JSON document, or null when the engine cannot
+     * describe the position. See cubiomes_details.c for the shape.
+     *
+     * [featureBit] is the single-bit feature mask of the structure kind;
+     * [container] selects one loot container to resolve instead of the full
+     * layout (pass -1 for the piece list).
+     */
+    fun structureDetailsBlocking(
+        seed: Long,
+        version: McVersion,
+        dimension: Dimension,
+        x: Int,
+        z: Int,
+        featureBit: Int,
+        container: Int = -1,
+    ): String? = NativeSeedgen.structureDetails(
+        seed = seed,
+        version = version.id,
+        dim = dimension.id,
+        x = x,
+        z = z,
+        featureBit = featureBit,
+        container = container,
+    )
+
+    /**
+     * Renders one underground tile as RGBA bytes, or null when the version,
+     * dimension or bounds are unsupported.
+     */
+    fun undergroundTileBlocking(
+        seed: Long,
+        version: McVersion,
+        dimension: Dimension,
+        scale: Int,
+        x: Int,
+        z: Int,
+        width: Int,
+        height: Int,
+        y: Int,
+        layers: Int,
+    ): ByteArray? {
+        val out = ByteArray(width * height * 4)
+        val status = NativeSeedgen.undergroundTile(
+            seed = seed,
+            version = version.id,
+            dim = dimension.id,
+            scale = scale,
+            x = x,
+            z = z,
+            width = width,
+            height = height,
+            y = y,
+            layers = layers,
+            outRgba = out,
+        )
+        return if (status == 0) out else null
+    }
+
     companion object {
+        /**
+         * Feature bits the Bedrock generator can actually place. Slime chunks,
+         * geodes, mineshafts, desert wells, ancient cities, trial chambers,
+         * trail ruins, abandoned camps, nether fossils and end gateways are
+         * Java-driven noise features without a Bedrock equivalent in our port.
+         */
+        private val BEDROCK_FEATURES = intArrayOf(
+            1 shl 0, 1 shl 1, 1 shl 2, 1 shl 3, 1 shl 4, 1 shl 8, 1 shl 11,
+            1 shl 12, 1 shl 13, 1 shl 14, 1 shl 15, 1 shl 16, 1 shl 20,
+            1 shl 21, 1 shl 22,
+        )
+
         const val DEFAULT_Y = 63
         const val CELL_BLOCKS = 4
 

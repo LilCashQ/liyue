@@ -31,14 +31,16 @@ import com.liyue.mctoolbox.feature.seeddebug.SeedGenScreen
 import com.liyue.mctoolbox.home.HomeScreen
 import com.liyue.mctoolbox.home.ToolCatalog
 import com.liyue.mctoolbox.home.ToolEntry
+import com.liyue.mctoolbox.map.MapTarget
 import com.liyue.mctoolbox.map.SeedMapScreen
+import com.liyue.mctoolbox.map.finder.FinderScreen
 import com.liyue.mctoolbox.ui.AboutScreen
 import com.liyue.mctoolbox.ui.AuthScreen
 import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Screen { TABS, MAP, DEBUG, AUTH }
+private enum class Screen { TABS, MAP, FINDER, DEBUG, AUTH }
 private enum class Tab { HOME, TOOLS, ABOUT }
 
 @AndroidEntryPoint
@@ -58,18 +60,31 @@ class MainActivity : ComponentActivity() {
                 var recentToolId by rememberSaveable {
                     mutableStateOf(prefs.getString("recent_tool", null))
                 }
+                var mapTarget by remember { mutableStateOf<MapTarget?>(null) }
 
                 fun openTool(tool: ToolEntry) {
                     if (!tool.available) return
                     recentToolId = tool.id
                     prefs.edit().putString("recent_tool", tool.id).apply()
-                    if (tool.id == ToolCatalog.SEED_MAP) screen = Screen.MAP
+                    when (tool.id) {
+                        ToolCatalog.SEED_MAP -> screen = Screen.MAP
+                        ToolCatalog.STRUCTURE_FINDER -> screen = Screen.FINDER
+                    }
                 }
 
                 when (screen) {
                     Screen.MAP -> SeedMapScreen(
                         onBack = { screen = Screen.TABS },
                         onOpenDebug = { screen = Screen.DEBUG },
+                        initialTarget = mapTarget,
+                        onTargetConsumed = { mapTarget = null },
+                    )
+                    Screen.FINDER -> FinderScreen(
+                        onBack = { screen = Screen.TABS },
+                        onOpenMap = { target ->
+                            mapTarget = target
+                            screen = Screen.MAP
+                        },
                     )
                     Screen.DEBUG -> SeedGenScreen(onBack = { screen = Screen.TABS })
                     Screen.AUTH -> AuthScreen(onBack = { screen = Screen.TABS })

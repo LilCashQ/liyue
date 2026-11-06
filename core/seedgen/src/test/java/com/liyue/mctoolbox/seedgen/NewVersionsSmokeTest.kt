@@ -22,6 +22,9 @@ class NewVersionsSmokeTest {
             McVersion.MC_1_21_6,
             McVersion.MC_1_21_9,
             McVersion.MC_1_21_11,
+            McVersion.MC_26_1,
+            McVersion.MC_26_2,
+            McVersion.MC_26_3,
         )
         versions.forEach { version ->
             val sample = runBlocking {

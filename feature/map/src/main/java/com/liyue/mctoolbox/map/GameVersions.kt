@@ -7,12 +7,26 @@ import com.liyue.mctoolbox.seedgen.McVersion
  * generation family, so they map to the same cubiomes algorithm; the UI shows
  * the backing algorithm when the label differs from it.
  */
+enum class Edition(val label: String) {
+    JAVA("Java"),
+    BEDROCK("基岩"),
+    ;
+
+    val isBedrock: Boolean get() = this == BEDROCK
+}
+
 data class GameVersion(
     val label: String,
     val engine: McVersion,
+    val edition: Edition = Edition.JAVA,
 ) {
-    val engineLabel: String get() = engine.label
-    val isAlias: Boolean get() = label != engine.label
+    /**
+     * Bedrock keeps its own edition name; Java versions fall back to the
+     * cubiomes algorithm family when the label differs from it.
+     */
+    val engineLabel: String
+        get() = if (edition.isBedrock) "基岩算法 · 群系 ${engine.label}" else engine.label
+    val isAlias: Boolean get() = !edition.isBedrock && label != engine.label
 }
 
 object GameVersions {
@@ -21,6 +35,28 @@ object GameVersions {
         fun family(vararg labels: String, engine: McVersion) {
             labels.forEach { add(GameVersion(it, engine)) }
         }
+
+        /**
+         * Bedrock releases. Structure placement uses the Bedrock Mersenne
+         * Twister; biomes come from the matching Java generator because both
+         * editions share the Overworld biome noise from 1.18 on.
+         */
+        fun bedrock(label: String, engine: McVersion) {
+            add(GameVersion("基岩 $label", engine, Edition.BEDROCK))
+        }
+        bedrock("1.21.120", McVersion.MC_1_21_11)
+        bedrock("1.21.90", McVersion.MC_1_21_6)
+        bedrock("1.21.60", McVersion.MC_1_21_5)
+        bedrock("1.21.50", McVersion.MC_1_21_3)
+        bedrock("1.21.0", McVersion.MC_1_21_1)
+        bedrock("1.20.60", McVersion.MC_1_20_6)
+        bedrock("1.20.1", McVersion.MC_1_20_6)
+        bedrock("1.19.0", McVersion.MC_1_19_4)
+        bedrock("1.18.0", McVersion.MC_1_18_2)
+
+        family("26.3", engine = McVersion.MC_26_3)
+        family("26.2", engine = McVersion.MC_26_2)
+        family("26.1.2", "26.1.1", "26.1", engine = McVersion.MC_26_1)
         family("1.21.11", "1.21.10", "1.21.9", engine = McVersion.MC_1_21_11)
         family("1.21.8", "1.21.7", "1.21.6", engine = McVersion.MC_1_21_6)
         family("1.21.5", engine = McVersion.MC_1_21_5)
@@ -45,5 +81,5 @@ object GameVersions {
         family("1.7.10", "1.7.9", "1.7.8", "1.7.7", "1.7.6", "1.7.5", "1.7.4", "1.7.3", "1.7.2", engine = McVersion.MC_1_7_10)
     }
 
-    val default: GameVersion = all.first()
+    val default: GameVersion = all.first { it.edition == Edition.JAVA }
 }

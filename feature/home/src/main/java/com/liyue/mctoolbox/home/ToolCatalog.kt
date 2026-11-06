@@ -3,6 +3,7 @@ package com.liyue.mctoolbox.home
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
@@ -18,6 +19,7 @@ data class ToolEntry(
 
 object ToolCatalog {
     const val SEED_MAP = "seed_map"
+    const val STRUCTURE_FINDER = "structure_finder"
 
     val all: List<ToolEntry> = listOf(
         ToolEntry(
@@ -25,6 +27,13 @@ object ToolCatalog {
             title = "种子地图",
             subtitle = "查看群系、结构与出生点",
             icon = Icons.Filled.LocationOn,
+            available = true,
+        ),
+        ToolEntry(
+            id = STRUCTURE_FINDER,
+            title = "结构查找",
+            subtitle = "找最近的村庄、要塞、群系与史莱姆区块",
+            icon = Icons.Filled.Search,
             available = true,
         ),
         ToolEntry(

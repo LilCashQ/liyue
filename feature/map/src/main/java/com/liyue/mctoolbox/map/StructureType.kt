@@ -44,8 +44,26 @@ enum class StructureType(
     ;
 
     companion object {
+        /**
+         * Types that can be placed for at least one version this app exposes.
+         * Abandoned camps arrived in 26.3, so they stay listed and the version
+         * gate in `StructureSupport` hides them on older releases.
+         */
+        private val PLACEABLE = entries
+
         fun forDimension(dimension: Dimension): List<StructureType> =
-            entries.filter { it.dimension == dimension }
+            PLACEABLE.filter { it.dimension == dimension }
+
+        /**
+         * Layers the Bedrock generator can place with our ported algorithm.
+         * Slime chunks, geodes, mineshafts, desert wells, ancient cities,
+         * trial chambers, trail ruins and abandoned camps are Java-only here.
+         */
+        val BEDROCK_SUPPORTED: Set<StructureType> = setOf(
+            VILLAGE, OUTPOST, SHIPWRECK, MONUMENT, MANSION, RUINED_PORTAL,
+            STRONGHOLD, DESERT_PYRAMID, JUNGLE_TEMPLE, SWAMP_HUT, IGLOO,
+            OCEAN_RUIN, TREASURE, FORTRESS, BASTION, END_CITY,
+        )
 
         val defaultEnabled: Set<StructureType> = setOf(
             SLIME_CHUNK, VILLAGE, ANCIENT_CITY, STRONGHOLD, MANSION,

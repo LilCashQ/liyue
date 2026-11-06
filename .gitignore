@@ -14,3 +14,8 @@ local.properties
 # 构建/缓存产物
 __pycache__/
 *.pyc
+
+# 发布签名密钥不入库
+keystore/
+*.jks
+*.keystore

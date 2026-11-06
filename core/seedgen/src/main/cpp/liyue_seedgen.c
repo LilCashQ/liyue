@@ -36,6 +36,9 @@ static const int LIYUE_MC_VERSIONS[] = {
     MC_1_21_6,   // 20
     MC_1_21_9,   // 21
     MC_1_21_11,  // 22
+    MC_26_1,     // 23
+    MC_26_2,     // 24
+    MC_26_3,     // 25
 };
 
 static const int LIYUE_MC_VERSION_COUNT =

@@ -8,27 +8,20 @@ plugins {
 android {
     namespace = "com.liyue.mctoolbox.seedgen"
     compileSdk = 35
-    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         minSdk = 26
-        externalNativeBuild {
-            cmake {
-                arguments += listOf("-DCMAKE_BUILD_TYPE=Release")
-                cFlags += listOf("-std=c11")
-            }
-        }
         ndk {
             abiFilters += "arm64-v8a"
         }
     }
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "4.2.1"
-        }
-    }
+    sourceSets["main"].jniLibs.srcDir("src/main/jniLibs")
+
+    // The native library is prebuilt into src/main/jniLibs/arm64-v8a by
+    // tools/build-android-so.sh. CMakeLists.txt under src/main/cpp is still the
+    // source of truth for the file list and is used for host-side tests via
+    // tools/verify-seedgen.sh.
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

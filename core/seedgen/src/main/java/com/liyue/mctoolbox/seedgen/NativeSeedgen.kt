@@ -97,6 +97,25 @@ internal object NativeSeedgen {
 
     external fun spawnPoint(seed: Long, version: Int, out: IntArray): Int
 
+    external fun scanOres(
+        seed: Long,
+        version: Int,
+        dim: Int,
+        chunkX: Int,
+        chunkZ: Int,
+        kind: Int,
+        out: IntArray,
+    ): Int
+
+    external fun biomeAtRaw(
+        seed: Long,
+        version: Int,
+        dim: Int,
+        x: Int,
+        y: Int,
+        z: Int,
+    ): Int
+
     external fun structurePositions(
         seed: Long,
         version: Int,
@@ -109,4 +128,61 @@ internal object NativeSeedgen {
         maxCount: Int,
         out: IntArray,
     ): Int
+
+    /**
+     * Structure details as a JSON document describing the variant (rotation,
+     * biome, bounding box) and, where the engine can lay them out, the
+     * individual pieces and their loot containers. Null when the position has
+     * nothing to describe.
+     */
+    external fun structureDetails(
+        seed: Long,
+        version: Int,
+        dim: Int,
+        x: Int,
+        z: Int,
+        featureBit: Int,
+        container: Int,
+    ): String?
+
+    /**
+     * Renders one underground tile as RGBA. [layers] is a 3-bit mask:
+     * 1 = solid blocks, 2 = carved caves, 4 = carved canyons. Width and height
+     * must be multiples of 16 and at most 64.
+     */
+    external fun undergroundTile(
+        seed: Long,
+        version: Int,
+        dim: Int,
+        scale: Int,
+        x: Int,
+        z: Int,
+        width: Int,
+        height: Int,
+        y: Int,
+        layers: Int,
+        outRgba: ByteArray,
+    ): Int
+
+    /**
+     * Bedrock Edition structure search. [feature] is one structure flag
+     * (1 shl n, matching the map layer bits); [version] selects the world
+     * generation used for the biome checks, since Bedrock and Java share the
+     * Overworld biome generator from 1.18 on. Results are written as x/z pairs
+     * and the number of structures is returned.
+     */
+    external fun bedrockFeatures(
+        seed: Long,
+        version: Int,
+        dimension: Int,
+        feature: Int,
+        minX: Int,
+        minZ: Int,
+        maxX: Int,
+        maxZ: Int,
+        out: IntArray,
+    ): Int
+
+    /** Bedrock stronghold ring: writes up to three x/z pairs, returns the count. */
+    external fun bedrockStrongholds(seed: Long, out: IntArray): Int
 }

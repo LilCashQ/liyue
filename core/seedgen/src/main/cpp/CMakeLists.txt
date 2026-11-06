@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.24)
 project(liyue_seedgen C)
 
 set(CMAKE_C_STANDARD 11)
@@ -6,7 +6,17 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(CUBIOMES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cubiomes)
 
+# Generated loot tables: one translation unit per chest/barrel variant. The
+# vendored cubiomes CMakeLists lists them explicitly; globbing keeps this list
+# from drifting when the snapshot is updated.
+file(GLOB LOOT_TABLE_SOURCES CONFIGURE_DEPENDS
+    ${CUBIOMES_DIR}/loot/loot_tables/chests/*.c
+    ${CUBIOMES_DIR}/loot/loot_tables/chests/trial_chambers/*.c
+    ${CUBIOMES_DIR}/loot/loot_tables/barrels/*.c
+)
+
 add_library(cubiomes STATIC
+    ${LOOT_TABLE_SOURCES}
     ${CUBIOMES_DIR}/biomenoise.c
     ${CUBIOMES_DIR}/biomes.c
     ${CUBIOMES_DIR}/carver.c
@@ -32,7 +42,18 @@ set_target_properties(cubiomes PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(liyue_seedgen SHARED
     liyue_seedgen.c
     ${CMAKE_CURRENT_SOURCE_DIR}/axolotl/cubiomes_bridge.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/axolotl/cubiomes_details.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/axolotl/underground_volume.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/axolotl/ancient_city_layout.c
     ${CMAKE_CURRENT_SOURCE_DIR}/axolotl/axolotl_jni.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/liyue_bedrock.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/liyue_bedrock_jni.c
+    ${CUBIOMES_DIR}/loot/items.c
+    ${CUBIOMES_DIR}/loot/loot_functions.c
+    ${CUBIOMES_DIR}/loot/loot_table_context.c
+    ${CUBIOMES_DIR}/loot/loot_table_parser.c
+    ${CUBIOMES_DIR}/loot/loot_tables.c
+    ${CUBIOMES_DIR}/loot/cjson/cJSON.c
 )
 
 target_include_directories(liyue_seedgen PRIVATE
@@ -43,7 +64,12 @@ target_include_directories(liyue_seedgen PRIVATE
 if(ANDROID)
     target_link_libraries(liyue_seedgen cubiomes m log)
 else()
-    find_package(JNI REQUIRED)
+    # Host-side build (tools/verify-seedgen.sh). Only the JVM entry points are
+    # needed, so AWT is not required; a headless JDK has no libjawt.
+    find_package(JNI QUIET COMPONENTS JVM)
+    if(NOT JNI_FOUND)
+        find_package(JNI REQUIRED)
+    endif()
     target_include_directories(liyue_seedgen PRIVATE ${JNI_INCLUDE_DIRS})
     target_link_libraries(liyue_seedgen cubiomes m)
 endif()
