@@ -83,6 +83,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.clipToBounds
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -193,12 +198,20 @@ fun SeedMapScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            FeatureChips(
-                dimension = state.dimension,
-                enabled = state.enabledStructures,
-                edition = state.gameVersion.edition,
-                onToggle = viewModel::toggleStructure,
-            )
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(2f),
+            ) {
+                FeatureChips(
+                    dimension = state.dimension,
+                    enabled = state.enabledStructures,
+                    edition = state.gameVersion.edition,
+                    onToggle = viewModel::toggleStructure,
+                )
+            }
             SeedMapCanvas(
                 modifier = Modifier.weight(1f),
                 state = state,
@@ -276,7 +289,6 @@ fun SeedMapScreen(
         ModalBottomSheet(onDismissRequest = { showSettings = false }) {
             SettingsSheet(
                 state = state,
-                onLayer = viewModel::setMapLayer,
                 onJump = { x, z ->
                     viewModel.jumpTo(x, z)
                     showSettings = false
@@ -337,6 +349,9 @@ fun SeedMapScreen(
         ModalBottomSheet(onDismissRequest = { showLegend = false }) {
             LegendSheet(
                 legend = state.legend,
+                seedText = state.seedText,
+                versionLabel = state.gameVersion.label,
+                dimensionLabel = state.dimension.label,
                 renderMillis = state.renderMillis,
                 rendering = state.rendering,
                 highlightIds = state.highlightBiomeIds,
@@ -530,6 +545,8 @@ private fun SeedMapCanvas(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .zIndex(0f)
+            .clipToBounds()
             .background(Color(0xFF0E1116)),
     ) {
         Canvas(
@@ -929,12 +946,31 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCrosshair(size:
 @Composable
 private fun LegendSheet(
     legend: List<LegendEntry>,
+    seedText: String,
+    versionLabel: String,
+    dimensionLabel: String,
     renderMillis: Long,
     rendering: Boolean,
     highlightIds: Set<Int>,
     onToggle: (Int) -> Unit,
     onClear: () -> Unit,
 ) {
+    var legendQuery by remember { mutableStateOf("") }
+    val legendContext = LocalContext.current
+    val legendScope = rememberCoroutineScope()
+    val legendLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv"),
+    ) { uri ->
+        if (uri != null) {
+            legendScope.launch {
+                MapExport.writeText(
+                    legendContext,
+                    uri,
+                    MapExport.biomesCsv(legend, seedText, versionLabel, dimensionLabel),
+                )
+            }
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -953,19 +989,45 @@ private fun LegendSheet(
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+            androidx.compose.material3.TextButton(
+                onClick = { legendLauncher.launch("里悦-群系-$seedText.csv") },
+            ) {
+                Text("导出")
+            }
             if (highlightIds.isNotEmpty()) {
                 androidx.compose.material3.TextButton(onClick = onClear) {
                     Text("清除高亮")
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = legendQuery,
+            onValueChange = { legendQuery = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp),
+            singleLine = true,
+            placeholder = { Text("搜索群系名", style = MaterialTheme.typography.bodySmall) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (legendQuery.isNotEmpty()) {
+                    IconButton(onClick = { legendQuery = "" }) {
+                        Icon(Icons.Filled.Close, contentDescription = "清空")
+                    }
+                }
+            },
+        )
+        Spacer(Modifier.height(8.dp))
+        val shown = legend.filter {
+            legendQuery.isBlank() || it.name.contains(legendQuery.trim(), ignoreCase = true)
+        }
         val total = legend.sumOf { it.cells }.coerceAtLeast(1)
         LazyColumn(
             modifier = Modifier.heightIn(max = 420.dp),
             contentPadding = PaddingValues(bottom = 16.dp),
         ) {
-            items(legend) { entry ->
+            items(shown) { entry ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1406,13 +1468,33 @@ private fun StructureListSheet(
     // Which structure types the list is showing. Everything is visible until
     // the user starts narrowing it down.
     var hiddenTypes by remember(state.structures) { mutableStateOf(emptySet<StructureType>()) }
+    var listQuery by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val csvLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv"),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                MapExport.writeText(context, uri, MapExport.structuresCsv(state))
+            }
+        }
+    }
     val types = remember(state.structures) {
         state.structures
             .map { it.type }
             .distinct()
             .sortedBy { it.ordinal }
     }
-    val visible = state.structures.filter { it.type !in hiddenTypes }
+    val query = listQuery.trim()
+    val visible = state.structures.filter { marker ->
+        marker.type !in hiddenTypes && (
+            query.isEmpty() ||
+                marker.type.label.contains(query, ignoreCase = true) ||
+                "${marker.x} ${marker.z}".contains(query) ||
+                "${marker.x},${marker.z}".contains(query)
+            )
+    }
     val sorted = remember(visible, state.camera) {
         visible
             .map { marker ->
@@ -1442,6 +1524,11 @@ private fun StructureListSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            androidx.compose.material3.TextButton(
+                onClick = { csvLauncher.launch("里悦-结构-${state.seedText}.csv") },
+            ) {
+                Text("导出")
             }
             if (hiddenTypes.isNotEmpty()) {
                 androidx.compose.material3.TextButton(onClick = { hiddenTypes = emptySet() }) {
@@ -1477,9 +1564,31 @@ private fun StructureListSheet(
             }
         }
         Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = listQuery,
+            onValueChange = { listQuery = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp),
+            singleLine = true,
+            placeholder = { Text("搜索结构名或坐标", style = MaterialTheme.typography.bodySmall) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (listQuery.isNotEmpty()) {
+                    IconButton(onClick = { listQuery = "" }) {
+                        Icon(Icons.Filled.Close, contentDescription = "清空")
+                    }
+                }
+            },
+        )
+        Spacer(Modifier.height(8.dp))
         if (sorted.isEmpty()) {
             Text(
-                text = "当前范围没有找到结构。放大地图或打开更多图层试试。",
+                text = if (query.isEmpty()) {
+                    "当前范围没有找到结构。放大地图或打开更多图层试试。"
+                } else {
+                    "没有匹配「$query」的结构。"
+                },
                 modifier = Modifier.padding(vertical = 24.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1643,7 +1752,6 @@ private fun ActionBarItem(
 @Composable
 private fun SettingsSheet(
     state: MapUiState,
-    onLayer: (MapLayer) -> Unit,
     onJump: (Double, Double) -> Unit,
     onTerrain: (Boolean) -> Unit,
     onContours: (Boolean) -> Unit,
@@ -1661,6 +1769,22 @@ private fun SettingsSheet(
     var xText by rememberSaveable { mutableStateOf("") }
     var zText by rememberSaveable { mutableStateOf("") }
     var customY by rememberSaveable { mutableStateOf(state.biomeY) }
+    var exporting by remember { mutableStateOf(false) }
+    var pendingImage by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    val exportContext = LocalContext.current
+    val exportScope = rememberCoroutineScope()
+    val pngLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("image/png"),
+    ) { uri ->
+        val image = pendingImage
+        if (uri != null && image != null) {
+            exportScope.launch {
+                MapExport.writeImage(exportContext, uri, image)
+            }
+        }
+        pendingImage = null
+        exporting = false
+    }
 
     Column(
         modifier = Modifier
@@ -1691,28 +1815,6 @@ private fun SettingsSheet(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SettingsToggle("等高线", state.contoursEnabled) { onContours(!state.contoursEnabled) }
             SettingsToggle("测量距离", state.measureMode, onClick = onMeasure)
-        }
-
-        HorizontalDivider()
-        Text("地图图层", style = MaterialTheme.typography.labelLarge)
-        Text(
-            when {
-                state.dimension != Dimension.OVERWORLD ->
-                    "气候与高度图层只在主世界可用（下界和末地用的是另一套地形）"
-                state.version.ordinal >= McVersion.MC_1_18_2.ordinal ->
-                    "群系下面是噪声本身：温度、湿度、大陆性、侵蚀、怪异度（照 cubiomes-viewer 的图层）"
-                else -> "1.18 以前没有气候噪声，只有群系和高度两层"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        FlowRowForChips {
-            MapLayer.entries.forEach { layer ->
-                val enabled = layer.native == null ||
-                    (state.dimension == Dimension.OVERWORLD &&
-                        (layer.native == 5 || state.version.ordinal >= McVersion.MC_1_18_2.ordinal))
-                SettingsToggle(layer.label, state.mapLayer == layer, enabled) { onLayer(layer) }
-            }
         }
 
         HorizontalDivider()
@@ -1761,6 +1863,36 @@ private fun SettingsSheet(
                 maxLines = 1,
             )
         }
+
+        Text("导出", style = MaterialTheme.typography.labelLarge)
+        OutlinedButton(
+            onClick = {
+                if (exporting) return@OutlinedButton
+                exporting = true
+                exportScope.launch {
+                    pendingImage = MapExport.renderImage(
+                        state = state,
+                        viewportWidth = state.viewportWidthPx,
+                        viewportHeight = state.viewportHeightPx,
+                        targetWidth = (state.viewportWidthPx * 2).coerceIn(720, 2048),
+                    )
+                    val image = pendingImage
+                    if (image == null) {
+                        exporting = false
+                    } else {
+                        pngLauncher.launch("里悦-地图-${state.seedText}.png")
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (exporting) "正在渲染…" else "导出当前地图 PNG（含结构点）")
+        }
+        Text(
+            "按当前视野和缩放导出，结构点、等高线、阴影都在图里；存到你选的位置。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Text("坐标跳转", style = MaterialTheme.typography.labelLarge)
         Row(
@@ -1812,16 +1944,6 @@ private fun SettingsToggle(
         onClick = onClick,
         enabled = enabled,
         label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-    )
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FlowRowForChips(content: @Composable FlowRowScope.() -> Unit) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        content = content,
     )
 }
 

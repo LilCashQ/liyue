@@ -56,6 +56,7 @@ class SeedMapViewModel @Inject constructor(
         if (width == viewportWidth && height == viewportHeight) return
         viewportWidth = width
         viewportHeight = height
+        _state.update { it.copy(viewportWidthPx = width, viewportHeightPx = height) }
         requestRender(immediate = true)
     }
 

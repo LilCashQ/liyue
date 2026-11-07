@@ -137,6 +137,8 @@ data class MapUiState(
     /** Tiles from the previous zoom step, shown until the new ones land. */
     val staleTiles: List<MapTile> = emptyList(),
     val mapLayer: MapLayer = MapLayer.BIOMES,
+    val viewportWidthPx: Int = 0,
+    val viewportHeightPx: Int = 0,
     val rendering: Boolean = false,
     val renderMillis: Long = 0,
     val selected: PointInfo? = null,
