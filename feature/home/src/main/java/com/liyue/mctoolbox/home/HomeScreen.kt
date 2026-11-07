@@ -357,7 +357,7 @@ private fun HeroCard(
                     Text(
                         text = badge,
                         modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp),
-                        color = Color(0xFF1B3A2B),
+                        color = Color(0xFF0B2C6B),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                     )
