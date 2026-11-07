@@ -27,6 +27,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -175,36 +180,50 @@ private fun SectionTitle(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 
 @Composable
 private fun HeroRow(onOpenTool: (ToolEntry) -> Unit) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            HeroCard(
-                title = "种子地图",
-                subtitle = "真实群系、结构与出生点",
-                badge = "可用",
-                gradient = listOf(Color(0xFF2F80ED), Color(0xFF1B5FC4)),
-                onClick = { onOpenTool(ToolCatalog.all.first { it.id == ToolCatalog.SEED_MAP }) },
-                modifier = Modifier.width(286.dp),
-            )
+    val seedMap = ToolCatalog.byId(ToolCatalog.SEED_MAP)
+    val finder = ToolCatalog.byId(ToolCatalog.STRUCTURE_FINDER)
+    val bedrock = ToolCatalog.byId(ToolCatalog.BEDROCK_LIBRARY)
+    val pageWidth = (LocalConfiguration.current.screenWidthDp * 0.72f).dp
+
+    LazyRow(
+        contentPadding = PaddingValues(end = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (seedMap != null) {
+            item {
+                HeroCard(
+                    title = "种子地图",
+                    subtitle = "真实群系、结构与出生点",
+                    badge = "官方",
+                    imageRes = R.drawable.hero_seed_map,
+                    onClick = { onOpenTool(seedMap) },
+                    modifier = Modifier.width(pageWidth),
+                )
+            }
         }
-        item {
-            HeroCard(
-                title = "模组中心",
-                subtitle = "三源聚合，敬请期待",
-                badge = null,
-                gradient = listOf(Color(0xFF123E82), Color(0xFF0A2A5E)),
-                onClick = {},
-                modifier = Modifier.width(150.dp),
-            )
+        if (finder != null) {
+            item {
+                HeroCard(
+                    title = "查找器",
+                    subtitle = "36 个查找器，一次装齐",
+                    badge = null,
+                    imageRes = R.drawable.hero_finder,
+                    onClick = { onOpenTool(finder) },
+                    modifier = Modifier.width(pageWidth),
+                )
+            }
         }
-        item {
-            HeroCard(
-                title = "工具实验室",
-                subtitle = "更多工具开发中",
-                badge = null,
-                gradient = listOf(Color(0xFF546E7A), Color(0xFF263238)),
-                onClick = {},
-                modifier = Modifier.width(150.dp),
-            )
+        if (bedrock != null) {
+            item {
+                HeroCard(
+                    title = "基岩版版本库",
+                    subtitle = "639 个版本，网盘直链",
+                    badge = null,
+                    imageRes = R.drawable.hero_bedrock,
+                    onClick = { onOpenTool(bedrock) },
+                    modifier = Modifier.width(pageWidth),
+                )
+            }
         }
     }
 }
@@ -214,62 +233,67 @@ private fun HeroCard(
     title: String,
     subtitle: String,
     badge: String?,
-    gradient: List<Color>,
+    imageRes: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier
-            .height(178.dp)
+            .height(192.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.linearGradient(gradient)),
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                repeat(7) { index ->
-                    val band = size.width / 7f
-                    drawRect(
-                        color = Color.White.copy(alpha = 0.05f + (index % 3) * 0.03f),
-                        topLeft = Offset(band * index, size.height * 0.5f),
-                        size = androidx.compose.ui.geometry.Size(band, size.height * 0.5f),
-                    )
-                }
-            }
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(imageRes),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.45f to Color.Black.copy(alpha = 0.10f),
+                            1f to Color.Black.copy(alpha = 0.74f),
+                        )
+                    ),
+            )
             if (badge != null) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(12.dp),
                     shape = RoundedCornerShape(50),
-                    color = Color.Black.copy(alpha = 0.45f),
+                    color = Color.White.copy(alpha = 0.88f),
                 ) {
                     Text(
                         text = badge,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        color = Color(0xFF1F2937),
                         style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(16.dp),
+                    .padding(18.dp),
             ) {
                 Text(
                     text = title,
                     color = Color.White,
-                    style = MaterialTheme.typography.titleLarge,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp,
                 )
                 Text(
                     text = subtitle,
-                    color = Color.White.copy(alpha = 0.85f),
-                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.88f),
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }

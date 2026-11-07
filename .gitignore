@@ -14,8 +14,3 @@ local.properties
 # 构建/缓存产物
 __pycache__/
 *.pyc
-
-# signing material stays local
-keystore/
-*.jks
-*.keystore
