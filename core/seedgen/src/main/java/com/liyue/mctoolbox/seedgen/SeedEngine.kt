@@ -271,6 +271,30 @@ class SeedEngine(
         }
     }
 
+    /**
+     * Renders a climate or height layer of the overworld.
+     *
+     * [layer] follows cubiomes-viewer: 0 temperature, 1 humidity,
+     * 2 continentalness, 3 erosion, 4 weirdness, 5 height.
+     */
+    fun renderLayerBlocking(
+        seed: Long,
+        version: McVersion,
+        layer: Int,
+        scale: Int,
+        x: Int,
+        z: Int,
+        width: Int,
+        height: Int,
+    ): ByteArray {
+        val rgb = ByteArray(width * height * 3)
+        val status = NativeSeedgen.renderTileLayer(
+            seed, version.id, layer, scale, x, z, width, height, rgb,
+        )
+        check(status == 0) { "renderLayer failed with $status" }
+        return rgb
+    }
+
     fun renderTileBlocking(
         seed: Long,
         version: McVersion,

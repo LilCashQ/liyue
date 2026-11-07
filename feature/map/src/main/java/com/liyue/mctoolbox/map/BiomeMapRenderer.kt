@@ -30,20 +30,34 @@ class BiomeMapRenderer(private val engine: SeedEngine) {
         val originBlockZ = firstPixelZ * cellBlocks
         val size = TILE_PX + PAD * 2
 
-        val rgb = engine.renderTileBlocking(
-            seed = request.key.seed,
-            version = request.version,
-            dimension = request.dimension,
-            scale = cellBlocks,
-            x = Math.floorDiv(originBlockX, cellBlocks),
-            z = Math.floorDiv(originBlockZ, cellBlocks),
-            width = size,
-            height = size,
-            elevation = request.key.elevation,
-            terrain = request.key.terrain,
-            contours = request.key.contours,
-            highlightMask = request.highlightMask,
-        )
+        val layer = MapLayer.entries.getOrElse(request.key.layer) { MapLayer.BIOMES }
+        val rgb = if (layer.native == null) {
+            engine.renderTileBlocking(
+                seed = request.key.seed,
+                version = request.version,
+                dimension = request.dimension,
+                scale = cellBlocks,
+                x = Math.floorDiv(originBlockX, cellBlocks),
+                z = Math.floorDiv(originBlockZ, cellBlocks),
+                width = size,
+                height = size,
+                elevation = request.key.elevation,
+                terrain = request.key.terrain,
+                contours = request.key.contours,
+                highlightMask = request.highlightMask,
+            )
+        } else {
+            engine.renderLayerBlocking(
+                seed = request.key.seed,
+                version = request.version,
+                layer = layer.native,
+                scale = cellBlocks,
+                x = Math.floorDiv(originBlockX, cellBlocks),
+                z = Math.floorDiv(originBlockZ, cellBlocks),
+                width = size,
+                height = size,
+            )
+        }
 
         val pixels = IntArray(size * size)
         for (index in pixels.indices) {

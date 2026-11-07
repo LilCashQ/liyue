@@ -141,6 +141,32 @@ Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_renderTileShaded(JNIEnv *env, job
 }
 
 JNIEXPORT jint JNICALL
+Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_renderTileLayer(JNIEnv *env, jobject thiz,
+    jlong seed, jint version, jint layer,
+    jint scale, jint x, jint z, jint width, jint height,
+    jbyteArray outRgb)
+{
+    (void)thiz;
+    int mc = liyue_mc_version(version);
+    if (mc < 0 || outRgb == NULL)
+        return -1;
+    jsize length = (*env)->GetArrayLength(env, outRgb);
+    if (length < width * height * 3)
+        return -1;
+
+    jbyte *rgb = (*env)->GetByteArrayElements(env, outRgb, NULL);
+    if (rgb == NULL)
+        return -1;
+
+    int status = axolotl_seed_map_render_layer(
+        (int64_t)seed, mc, 0, layer, x, z, scale, width, height,
+        (uint8_t *)rgb, (size_t)length);
+
+    (*env)->ReleaseByteArrayElements(env, outRgb, rgb, 0);
+    return status;
+}
+
+JNIEXPORT jint JNICALL
 Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_seedMapCapability(JNIEnv *env, jobject thiz,
     jint version, jint capability, jint value)
 {

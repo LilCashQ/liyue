@@ -61,10 +61,12 @@ fun HomeScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val tools = remember(query) {
         val keyword = query.trim()
+        // 查找器搬进了种子地图的顶栏，首页不再重复放一张卡
+        val homeTools = ToolCatalog.all.filter { it.id != ToolCatalog.STRUCTURE_FINDER }
         if (keyword.isEmpty()) {
-            ToolCatalog.all
+            homeTools
         } else {
-            ToolCatalog.all.filter {
+            homeTools.filter {
                 it.title.contains(keyword, ignoreCase = true) ||
                     it.subtitle.contains(keyword, ignoreCase = true)
             }
@@ -181,7 +183,6 @@ private fun SectionTitle(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 @Composable
 private fun HeroRow(onOpenTool: (ToolEntry) -> Unit) {
     val seedMap = ToolCatalog.byId(ToolCatalog.SEED_MAP)
-    val finder = ToolCatalog.byId(ToolCatalog.STRUCTURE_FINDER)
     val bedrock = ToolCatalog.byId(ToolCatalog.BEDROCK_LIBRARY)
     val pageWidth = (LocalConfiguration.current.screenWidthDp * 0.72f).dp
 
@@ -197,18 +198,6 @@ private fun HeroRow(onOpenTool: (ToolEntry) -> Unit) {
                     badge = "官方",
                     imageRes = R.drawable.hero_seed_map,
                     onClick = { onOpenTool(seedMap) },
-                    modifier = Modifier.width(pageWidth),
-                )
-            }
-        }
-        if (finder != null) {
-            item {
-                HeroCard(
-                    title = "查找器",
-                    subtitle = "36 个查找器，一次装齐",
-                    badge = null,
-                    imageRes = R.drawable.hero_finder,
-                    onClick = { onOpenTool(finder) },
                     modifier = Modifier.width(pageWidth),
                 )
             }

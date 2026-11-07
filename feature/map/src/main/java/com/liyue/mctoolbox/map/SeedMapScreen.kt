@@ -17,6 +17,9 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -273,6 +276,7 @@ fun SeedMapScreen(
         ModalBottomSheet(onDismissRequest = { showSettings = false }) {
             SettingsSheet(
                 state = state,
+                onLayer = viewModel::setMapLayer,
                 onJump = { x, z ->
                     viewModel.jumpTo(x, z)
                     showSettings = false
@@ -1639,6 +1643,7 @@ private fun ActionBarItem(
 @Composable
 private fun SettingsSheet(
     state: MapUiState,
+    onLayer: (MapLayer) -> Unit,
     onJump: (Double, Double) -> Unit,
     onTerrain: (Boolean) -> Unit,
     onContours: (Boolean) -> Unit,
@@ -1680,12 +1685,34 @@ private fun SettingsSheet(
         Text("地图上", style = MaterialTheme.typography.labelLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SettingsToggle("区块网格", state.gridEnabled) { onGrid(!state.gridEnabled) }
-            SettingsToggle("史莱姆区块", StructureType.SLIME_CHUNK in state.enabledStructures, onSlime)
+            SettingsToggle("史莱姆区块", StructureType.SLIME_CHUNK in state.enabledStructures, onClick = onSlime)
             SettingsToggle("地形阴影", state.terrainEnabled) { onTerrain(!state.terrainEnabled) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SettingsToggle("等高线", state.contoursEnabled) { onContours(!state.contoursEnabled) }
-            SettingsToggle("测量距离", state.measureMode, onMeasure)
+            SettingsToggle("测量距离", state.measureMode, onClick = onMeasure)
+        }
+
+        HorizontalDivider()
+        Text("地图图层", style = MaterialTheme.typography.labelLarge)
+        Text(
+            when {
+                state.dimension != Dimension.OVERWORLD ->
+                    "气候与高度图层只在主世界可用（下界和末地用的是另一套地形）"
+                state.version.ordinal >= McVersion.MC_1_18_2.ordinal ->
+                    "群系下面是噪声本身：温度、湿度、大陆性、侵蚀、怪异度（照 cubiomes-viewer 的图层）"
+                else -> "1.18 以前没有气候噪声，只有群系和高度两层"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRowForChips {
+            MapLayer.entries.forEach { layer ->
+                val enabled = layer.native == null ||
+                    (state.dimension == Dimension.OVERWORLD &&
+                        (layer.native == 5 || state.version.ordinal >= McVersion.MC_1_18_2.ordinal))
+                SettingsToggle(layer.label, state.mapLayer == layer, enabled) { onLayer(layer) }
+            }
         }
 
         HorizontalDivider()
@@ -1774,11 +1801,27 @@ private fun SettingsSheet(
 }
 
 @Composable
-private fun SettingsToggle(label: String, active: Boolean, onClick: () -> Unit) {
+private fun SettingsToggle(
+    label: String,
+    active: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
     FilterChip(
         selected = active,
         onClick = onClick,
+        enabled = enabled,
         label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FlowRowForChips(content: @Composable FlowRowScope.() -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
     )
 }
 

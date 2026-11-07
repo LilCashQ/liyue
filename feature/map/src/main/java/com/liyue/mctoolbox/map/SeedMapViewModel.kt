@@ -77,14 +77,37 @@ class SeedMapViewModel @Inject constructor(
             camera
         }
         _state.update {
-            it.copy(gameVersion = gameVersion, camera = clamped, tiles = emptyList(), legend = emptyList(), structures = emptyList())
+            val climateOk = engine.ordinal >= McVersion.MC_1_18_2.ordinal
+            val layer = if (!climateOk && it.mapLayer.isClimate) MapLayer.BIOMES else it.mapLayer
+            it.copy(
+                gameVersion = gameVersion,
+                camera = clamped,
+                tiles = emptyList(),
+                legend = emptyList(),
+                structures = emptyList(),
+                mapLayer = layer,
+            )
         }
         requestRender(immediate = true)
     }
 
     fun setDimension(dimension: Dimension) {
         if (dimension == _state.value.dimension) return
-        _state.update { it.copy(dimension = dimension, tiles = emptyList(), legend = emptyList(), structures = emptyList()) }
+        _state.update {
+            // The climate and height layers are overworld-only.
+            val layer = if (dimension != Dimension.OVERWORLD && it.mapLayer.native != null) {
+                MapLayer.BIOMES
+            } else {
+                it.mapLayer
+            }
+            it.copy(
+                dimension = dimension,
+                tiles = emptyList(),
+                legend = emptyList(),
+                structures = emptyList(),
+                mapLayer = layer,
+            )
+        }
         requestRender(immediate = true)
     }
 
@@ -138,6 +161,18 @@ class SeedMapViewModel @Inject constructor(
     fun setTerrainEnabled(enabled: Boolean) {
         if (enabled == _state.value.terrainEnabled) return
         _state.update { it.copy(terrainEnabled = enabled) }
+        requestRender(immediate = true)
+    }
+
+    /** Switches the tile layer; climate layers fall back for pre-1.18 worlds. */
+    fun setMapLayer(layer: MapLayer) {
+        val snapshot = _state.value
+        if (layer == snapshot.mapLayer) return
+        val supported = layer.native == null ||
+            (snapshot.dimension == Dimension.OVERWORLD &&
+                (layer.native == 5 || snapshot.version.ordinal >= McVersion.MC_1_18_2.ordinal))
+        if (!supported) return
+        _state.update { it.copy(mapLayer = layer) }
         requestRender(immediate = true)
     }
 
@@ -871,6 +906,7 @@ class SeedMapViewModel @Inject constructor(
                     contours = contours,
                     elevation = snapshot.biomeY,
                     highlightHash = highlightHash,
+                    layer = snapshot.mapLayer.ordinal,
                 )
             }
         }

@@ -49,6 +49,19 @@ internal object NativeSeedgen {
         out: IntArray,
     ): Int
 
+    /** Paints one map layer: 0..4 climate parameters, 5 height. */
+    external fun renderTileLayer(
+        seed: Long,
+        version: Int,
+        layer: Int,
+        scale: Int,
+        x: Int,
+        z: Int,
+        width: Int,
+        height: Int,
+        outRgb: ByteArray,
+    ): Int
+
     external fun renderTile(
         seed: Long,
         version: Int,

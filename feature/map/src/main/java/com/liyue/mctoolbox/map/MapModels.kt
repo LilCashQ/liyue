@@ -36,6 +36,28 @@ data class MapTile(
 )
 
 /** Identity of a tile: everything that changes its pixels. */
+/**
+ * What a tile paints: the biome colours, or one of the underlying noise
+ * parameters (cubiomes-viewer calls these the map layers). Climate layers need
+ * 1.18 or newer, where the overworld is driven by the climate noise.
+ */
+enum class MapLayer(
+    val label: String,
+    /** 0..4 = climate parameter, 5 = height, null = biome colours. */
+    val native: Int?,
+) {
+    BIOMES("群系", null),
+    HEIGHT("高度", 5),
+    TEMPERATURE("温度", 0),
+    HUMIDITY("湿度", 1),
+    CONTINENTALNESS("大陆性", 2),
+    EROSION("侵蚀", 3),
+    WEIRDNESS("怪异度", 4),
+    ;
+
+    val isClimate: Boolean get() = native != null && native != 5
+}
+
 data class TileKey(
     val seed: Long,
     val versionId: Int,
@@ -48,6 +70,7 @@ data class TileKey(
     /** Y level the biomes are sampled at; caves change the layer below ground. */
     val elevation: Int,
     val highlightHash: Int,
+    val layer: Int = 0,
 )
 
 data class RenderRequest(
@@ -113,6 +136,7 @@ data class MapUiState(
     val tileCellBlocks: Int = 4,
     /** Tiles from the previous zoom step, shown until the new ones land. */
     val staleTiles: List<MapTile> = emptyList(),
+    val mapLayer: MapLayer = MapLayer.BIOMES,
     val rendering: Boolean = false,
     val renderMillis: Long = 0,
     val selected: PointInfo? = null,

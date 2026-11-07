@@ -525,6 +525,178 @@ int axolotl_seed_map_render_shaded(
     return 0;
 }
 
+
+/* ------------------------------------------------------------------------- */
+/* Extra map layers: the five climate parameters plus a raw height map, the   */
+/* same set cubiomes-viewer offers in its layer dialog. `layer` is 0..4 for   */
+/* temperature, humidity, continentalness, erosion and weirdness, 5 for       */
+/* height. Values are colour ramps rather than biome colours, so a user can   */
+/* see how the noise compares to the biome map above it.                      */
+/* ------------------------------------------------------------------------- */
+
+static const float AXOLOTL_T_STOPS[] = {-1.0f, -0.45f, 0.0f, 0.45f, 1.0f};
+static const uint8_t AXOLOTL_T_COLORS[][3] = {
+    { 44, 78, 170}, { 90, 172, 196}, {138, 200, 132}, {226, 190, 96}, {214, 88, 60},
+};
+static const float AXOLOTL_H_STOPS[] = {-1.0f, -0.35f, 0.1f, 0.6f, 1.0f};
+static const uint8_t AXOLOTL_H_COLORS[][3] = {
+    {206, 176, 118}, {176, 196, 126}, {104, 178, 138}, {72, 150, 176}, {54, 96, 186},
+};
+static const float AXOLOTL_C_STOPS[] = {-1.0f, -0.45f, -0.1f, 0.35f, 1.0f};
+static const uint8_t AXOLOTL_C_COLORS[][3] = {
+    { 16, 44, 110}, { 54, 122, 190}, {196, 206, 148}, {142, 168, 108}, {236, 240, 244},
+};
+static const float AXOLOTL_E_STOPS[] = {-1.0f, -0.3f, 0.2f, 1.0f};
+static const uint8_t AXOLOTL_E_COLORS[][3] = {
+    {118, 76, 158}, {150, 148, 158}, {176, 190, 150}, {242, 222, 150},
+};
+static const float AXOLOTL_W_STOPS[] = {-1.0f, -0.2f, 0.2f, 1.0f};
+static const uint8_t AXOLOTL_W_COLORS[][3] = {
+    { 58, 88, 188}, {176, 200, 226}, {238, 210, 190}, {198, 76, 66},
+};
+
+static void axolotl_ramp_color(
+    float value,
+    const float *stops,
+    const uint8_t (*colors)[3],
+    int count,
+    uint8_t *out
+) {
+    if (value <= stops[0]) {
+        out[0] = colors[0][0];
+        out[1] = colors[0][1];
+        out[2] = colors[0][2];
+        return;
+    }
+    for (int i = 1; i < count; i++) {
+        if (value <= stops[i]) {
+            const float span = stops[i] - stops[i - 1];
+            const float t = span > 0.0f ? (value - stops[i - 1]) / span : 0.0f;
+            for (int c = 0; c < 3; c++) {
+                const float mixed = colors[i - 1][c] + t * (colors[i][c] - colors[i - 1][c]);
+                out[c] = (uint8_t)(mixed < 0.0f ? 0.0f : (mixed > 255.0f ? 255.0f : mixed));
+            }
+            return;
+        }
+    }
+    out[0] = colors[count - 1][0];
+    out[1] = colors[count - 1][1];
+    out[2] = colors[count - 1][2];
+}
+
+static uint8_t axolotl_clamp_byte(float value) {
+    if (value <= 0.0f) return 0;
+    if (value >= 255.0f) return 255;
+    return (uint8_t)value;
+}
+
+int axolotl_seed_map_render_layer(
+    int64_t seed,
+    int minecraft_version,
+    int32_t generator_flags,
+    int32_t layer,
+    int32_t x,
+    int32_t z,
+    int32_t scale,
+    int32_t width,
+    int32_t height,
+    uint8_t *rgb,
+    size_t rgb_len
+) {
+    if (rgb == NULL || width <= 0 || height <= 0 || scale <= 0) return -1;
+    if (rgb_len < (size_t)width * (size_t)height * 3) return -1;
+    if (layer < 0 || layer > 5) return -1;
+
+    if (layer == 5) {
+        Generator generator;
+        setupGenerator(&generator, minecraft_version, generator_flags);
+        applySeed(&generator, DIM_OVERWORLD, seed);
+        SurfaceNoise surface_noise;
+        initSurfaceNoise(&surface_noise, DIM_OVERWORLD, seed);
+
+        const int cell = scale > 4 ? scale : 4;
+        const int64_t origin_x = (int64_t)x * scale;
+        const int64_t origin_z = (int64_t)z * scale;
+        const int grid_width = (int)(((int64_t)width * scale) / cell) + 3;
+        const int grid_height = (int)(((int64_t)height * scale) / cell) + 3;
+        if (grid_width <= 0 || grid_height <= 0) return -1;
+        if (grid_width > 4096 || grid_height > 4096) return -1;
+
+        float *heights = malloc((size_t)grid_width * (size_t)grid_height * sizeof(float));
+        if (!heights) return -1;
+        const int status = axolotl_fill_world_height_grid(
+            heights, &generator, &surface_noise, origin_x, origin_z, cell,
+            grid_width, grid_height);
+        if (status != 0) {
+            free(heights);
+            return -1;
+        }
+        for (int row = 0; row < height; row++) {
+            for (int column = 0; column < width; column++) {
+                const int gc = (int)((int64_t)column * scale / cell);
+                const int gr = (int)((int64_t)row * scale / cell);
+                const float here = heights[(size_t)gr * grid_width + (size_t)gc];
+                const float west = gc > 0
+                    ? heights[(size_t)gr * grid_width + (size_t)(gc - 1)] : here;
+                const float north = gr > 0
+                    ? heights[(size_t)(gr - 1) * grid_width + (size_t)gc] : here;
+                float gray = (here + 64.0f) / 384.0f;
+                if (gray < 0.0f) gray = 0.0f;
+                if (gray > 1.0f) gray = 1.0f;
+                float drop = (west - here) + (north - here);
+                float factor = 1.0f + drop * 0.035f;
+                if (factor < 0.55f) factor = 0.55f;
+                if (factor > 1.45f) factor = 1.45f;
+                const float base = 34.0f + 208.0f * gray;
+                uint8_t *pixel = rgb + ((size_t)row * width + column) * 3;
+                for (int c = 0; c < 3; c++)
+                    pixel[c] = axolotl_clamp_byte(base * factor);
+            }
+        }
+        free(heights);
+        return 0;
+    }
+
+    static const float *const STOPS[] = {
+        AXOLOTL_T_STOPS, AXOLOTL_H_STOPS, AXOLOTL_C_STOPS, AXOLOTL_E_STOPS, AXOLOTL_W_STOPS,
+    };
+    static const uint8_t (*const COLORS[])[3] = {
+        AXOLOTL_T_COLORS, AXOLOTL_H_COLORS, AXOLOTL_C_COLORS, AXOLOTL_E_COLORS, AXOLOTL_W_COLORS,
+    };
+    static const int COUNTS[] = {5, 5, 5, 4, 4};
+    static const int PARAMS[] = {
+        NP_TEMPERATURE, NP_HUMIDITY, NP_CONTINENTALNESS, NP_EROSION, NP_WEIRDNESS,
+    };
+
+    BiomeNoise biome_noise;
+    initBiomeNoise(&biome_noise, minecraft_version);
+    const int large = generator_flags & LARGE_BIOMES;
+    setBiomeSeed(&biome_noise, (uint64_t)seed, large);
+    setClimateParaSeed(&biome_noise, (uint64_t)seed, large, PARAMS[layer], -1);
+
+    const double step = (double)scale / 4.0;
+    for (int row = 0; row < height; row++) {
+        const double noise_z = ((double)z * scale + (double)row * scale + scale * 0.5) / 4.0;
+        for (int column = 0; column < width; column++) {
+            const double noise_x = ((double)x * scale + (double)column * scale + scale * 0.5) / 4.0;
+            const float value = (float)sampleClimatePara(&biome_noise, NULL, noise_x, noise_z);
+            const float west = (float)sampleClimatePara(
+                &biome_noise, NULL, noise_x - step, noise_z);
+            const float north = (float)sampleClimatePara(
+                &biome_noise, NULL, noise_x, noise_z - step);
+            uint8_t color[3];
+            axolotl_ramp_color(value, STOPS[layer], COLORS[layer], COUNTS[layer], color);
+            float factor = 1.0f + ((west - value) + (north - value)) * 0.06f;
+            if (factor < 0.72f) factor = 0.72f;
+            if (factor > 1.3f) factor = 1.3f;
+            uint8_t *pixel = rgb + ((size_t)row * width + column) * 3;
+            for (int c = 0; c < 3; c++)
+                pixel[c] = axolotl_clamp_byte((float)color[c] * factor);
+        }
+    }
+    return 0;
+}
+
 int axolotl_seed_map_render(
     uint64_t seed,
     int32_t minecraft_version,

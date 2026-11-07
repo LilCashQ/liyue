@@ -96,6 +96,19 @@ size_t axolotl_seed_map_scan_ores_cancellable(uint64_t seed, int32_t mc, int32_t
  * heights in blocks. `x` and `z` are in 1:4 scale units and the grid has a
  * stride of one unit (4 blocks). Returns 0 on success.
  */
+int axolotl_seed_map_render_layer(
+    int64_t seed,
+    int minecraft_version,
+    int32_t generator_flags,
+    int32_t layer,
+    int32_t x,
+    int32_t z,
+    int32_t scale,
+    int32_t width,
+    int32_t height,
+    uint8_t *rgb,
+    size_t rgb_len);
+
 int axolotl_seed_map_render_shaded(
     int64_t seed,
     int minecraft_version,
