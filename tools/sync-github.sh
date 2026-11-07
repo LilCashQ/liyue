@@ -69,6 +69,10 @@ except urllib.error.HTTPError:
     })
 upload = release["upload_url"].split("{")[0]
 name = f"LiYue-{version}-arm64.apk"
+if any(asset["name"] == name for asset in release.get("assets", [])):
+    print("SKIP 已存在", name)
+    print("RELEASE", release["html_url"])
+    raise SystemExit(0)
 with open(apk, "rb") as handle:
     data = handle.read()
 req = urllib.request.Request(
