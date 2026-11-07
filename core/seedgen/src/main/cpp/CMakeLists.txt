@@ -9,6 +9,8 @@ set(CUBIOMES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cubiomes)
 # Generated loot tables: one translation unit per chest/barrel variant. The
 # vendored cubiomes CMakeLists lists them explicitly; globbing keeps this list
 # from drifting when the snapshot is updated.
+file(GLOB LUA_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/lua/*.c)
+
 file(GLOB LOOT_TABLE_SOURCES CONFIGURE_DEPENDS
     ${CUBIOMES_DIR}/loot/loot_tables/chests/*.c
     ${CUBIOMES_DIR}/loot/loot_tables/chests/trial_chambers/*.c
@@ -52,6 +54,8 @@ add_library(liyue_seedgen SHARED
     liyue_quad.c
     ${CMAKE_CURRENT_SOURCE_DIR}/liyue_dungeon_jni.c
     liyue_quad_jni.c
+    liyue_lua.c
+    ${LUA_SOURCES}
     ${CUBIOMES_DIR}/loot/items.c
     ${CUBIOMES_DIR}/loot/loot_functions.c
     ${CUBIOMES_DIR}/loot/loot_table_context.c

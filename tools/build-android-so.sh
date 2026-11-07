@@ -51,7 +51,9 @@ SOURCES=(
   "$CPP/liyue_quad.c"
     "$CPP/liyue_dungeon_jni.c"
   "$CPP/liyue_quad_jni.c"
-    "$CPP/axolotl/"*.c
+  "$CPP/liyue_lua.c"
+    "$CPP/lua/"*.c
+  "$CPP/axolotl/"*.c
 )
 
 mkdir -p "$OUT_DIR"

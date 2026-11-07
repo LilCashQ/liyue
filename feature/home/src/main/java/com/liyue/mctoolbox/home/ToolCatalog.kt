@@ -1,6 +1,7 @@
 package com.liyue.mctoolbox.home
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
@@ -21,6 +22,7 @@ object ToolCatalog {
     const val SEED_MAP = "seed_map"
     const val STRUCTURE_FINDER = "structure_finder"
     const val BEDROCK_LIBRARY = "bedrock_library"
+    const val SCRIPT_STUDIO = "script_studio"
 
     val all: List<ToolEntry> = listOf(
         ToolEntry(
@@ -42,6 +44,13 @@ object ToolCatalog {
             title = "基岩版版本库",
             subtitle = "全部基岩版本与网盘下载，直通种子地图",
             icon = Icons.Filled.List,
+            available = true,
+        ),
+        ToolEntry(
+            id = SCRIPT_STUDIO,
+            title = "脚本工坊",
+            subtitle = "写 Lua 搜种子，和 cubiomes-viewer 一样",
+            icon = Icons.Filled.Edit,
             available = true,
         ),
         ToolEntry(

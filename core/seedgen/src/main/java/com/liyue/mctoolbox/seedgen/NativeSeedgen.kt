@@ -265,4 +265,6 @@ internal object NativeSeedgen {
         maxRegionZ: Int,
         out: IntArray,
     ): Int
+
+    external fun runScript(script: String, seed: Long, version: Int): String?
 }

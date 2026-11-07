@@ -449,6 +449,14 @@ class SeedEngine(
         return if (status == 0) out else null
     }
 
+    /**
+     * Runs a user script with the cubiomes helpers bound in. Returns the raw
+     * JSON report (logs, hits, error) so the UI can parse it without pulling
+     * org.json into this module's host tests.
+     */
+    fun runScriptBlocking(script: String, seed: Long, version: McVersion): String? =
+        NativeSeedgen.runScript(script, seed, version.id)
+
     /** A quad witch hut constellation: the AFK block plus its spawning spaces. */
     data class QuadHut(val x: Int, val z: Int, val spawnSpaces: Int)
 

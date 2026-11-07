@@ -33,6 +33,7 @@ import com.liyue.mctoolbox.home.HomeScreen
 import com.liyue.mctoolbox.home.ToolCatalog
 import com.liyue.mctoolbox.home.ToolEntry
 import com.liyue.mctoolbox.map.MapTarget
+import com.liyue.mctoolbox.map.ScriptScreen
 import com.liyue.mctoolbox.map.SeedMapScreen
 import com.liyue.mctoolbox.map.GameVersions
 import com.liyue.mctoolbox.map.MapOverlay
@@ -46,7 +47,7 @@ import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, DEBUG, AUTH }
+private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, DEBUG, AUTH }
 private enum class Tab { HOME, TOOLS, ABOUT }
 
 @AndroidEntryPoint
@@ -78,6 +79,7 @@ class MainActivity : ComponentActivity() {
                         ToolCatalog.SEED_MAP -> screen = Screen.MAP
                         ToolCatalog.STRUCTURE_FINDER -> screen = Screen.APPS
                         ToolCatalog.BEDROCK_LIBRARY -> screen = Screen.BEDROCK
+                        ToolCatalog.SCRIPT_STUDIO -> screen = Screen.SCRIPT
                     }
                 }
 
@@ -152,6 +154,13 @@ class MainActivity : ComponentActivity() {
                             screen = Screen.MAP
                         },
                         preset = finderPreset,
+                    )
+                    Screen.SCRIPT -> ScriptScreen(
+                        onBack = { screen = Screen.TABS },
+                        onOpenMap = { target ->
+                            mapTarget = target
+                            screen = Screen.MAP
+                        },
                     )
                     Screen.DEBUG -> SeedGenScreen(onBack = { screen = Screen.TABS })
                     Screen.AUTH -> AuthScreen(onBack = { screen = Screen.TABS })
