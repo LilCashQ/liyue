@@ -457,6 +457,104 @@ class SeedEngine(
     fun runScriptBlocking(script: String, seed: Long, version: McVersion): String? =
         NativeSeedgen.runScript(script, seed, version.id)
 
+    /** One verified full-flower-farm window (centre, extents, areas, sample points). */
+    data class FlowerFarmHit(
+        val centerX: Int,
+        val centerZ: Int,
+        val sideX: Int,
+        val sideZ: Int,
+        val flowerArea: Int,
+        val paleArea: Int,
+        val swampArea: Int,
+        val flowerX: Int,
+        val flowerY: Int,
+        val flowerZ: Int,
+        val paleX: Int,
+        val paleZ: Int,
+        val swampX: Int,
+        val swampZ: Int,
+        val nether: String,
+        val bonus: String,
+    )
+
+    /**
+     * Searches the rectangle for windows that hold flower forest, swamp and
+     * (1.21.4+) a pale garden at the same time, the way FlowerFinder does.
+     */
+    fun flowerSearchBlocking(
+        seed: Long,
+        version: McVersion,
+        minX: Int,
+        minZ: Int,
+        maxX: Int,
+        maxZ: Int,
+        longSide: Int,
+        shortSide: Int,
+        squareOnly: Boolean,
+        requirePale: Boolean,
+        requireBothBonus: Boolean,
+        requireBasalt: Boolean,
+        maxRows: Int = 16,
+    ): List<FlowerFarmHit> {
+        if (version.ordinal < McVersion.MC_1_18_2.ordinal) return emptyList()
+        val out = IntArray(maxRows.coerceIn(1, 64) * 16)
+        val rows = NativeSeedgen.flowerSearch(
+            seed,
+            version.id,
+            minX,
+            minZ,
+            maxX,
+            maxZ,
+            longSide,
+            shortSide,
+            if (squareOnly) 1 else 0,
+            if (requirePale) 1 else 0,
+            if (requireBothBonus) 1 else 0,
+            if (requireBasalt) 1 else 0,
+            maxRows.coerceIn(1, 64),
+            out,
+        )
+        if (rows <= 0) return emptyList()
+        return (0 until rows).map { index ->
+            val base = index * 16
+            FlowerFarmHit(
+                centerX = out[base + 0],
+                centerZ = out[base + 1],
+                sideX = out[base + 2],
+                sideZ = out[base + 3],
+                flowerArea = out[base + 4],
+                paleArea = out[base + 5],
+                swampArea = out[base + 6],
+                flowerX = out[base + 7],
+                flowerY = out[base + 8],
+                flowerZ = out[base + 9],
+                paleX = out[base + 10],
+                paleZ = out[base + 11],
+                swampX = out[base + 12],
+                swampZ = out[base + 13],
+                nether = netherLabel(out[base + 14]),
+                bonus = bonusLabel(out[base + 15]),
+            )
+        }
+    }
+
+    private fun netherLabel(rank: Int): String = when (rank) {
+        1 -> "玄武岩三角洲"
+        2 -> "下界荒地"
+        3 -> "绯红森林"
+        4 -> "灵魂沙峡谷"
+        5 -> "诡异森林"
+        else -> "无"
+    }
+
+    private fun bonusLabel(mask: Int): String {
+        val parts = buildList {
+            if (mask and 1 != 0) add("野花")
+            if (mask and 2 != 0) add("粉红花瓣")
+        }
+        return parts.joinToString(" + ")
+    }
+
     /** A quad witch hut constellation: the AFK block plus its spawning spaces. */
     data class QuadHut(val x: Int, val z: Int, val spawnSpaces: Int)
 

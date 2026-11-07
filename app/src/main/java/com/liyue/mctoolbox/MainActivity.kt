@@ -47,7 +47,7 @@ import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, DEBUG, AUTH }
+private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, DEBUG, AUTH }
 private enum class Tab { HOME, TOOLS, ABOUT }
 
 @AndroidEntryPoint
@@ -80,6 +80,7 @@ class MainActivity : ComponentActivity() {
                         ToolCatalog.STRUCTURE_FINDER -> screen = Screen.APPS
                         ToolCatalog.BEDROCK_LIBRARY -> screen = Screen.BEDROCK
                         ToolCatalog.SCRIPT_STUDIO -> screen = Screen.SCRIPT
+                        ToolCatalog.FLOWER_FARM -> screen = Screen.FLOWER
                     }
                 }
 
@@ -156,6 +157,13 @@ class MainActivity : ComponentActivity() {
                         preset = finderPreset,
                     )
                     Screen.SCRIPT -> ScriptScreen(
+                        onBack = { screen = Screen.TABS },
+                        onOpenMap = { target ->
+                            mapTarget = target
+                            screen = Screen.MAP
+                        },
+                    )
+                    Screen.FLOWER -> com.liyue.mctoolbox.map.FlowerFarmScreen(
                         onBack = { screen = Screen.TABS },
                         onOpenMap = { target ->
                             mapTarget = target

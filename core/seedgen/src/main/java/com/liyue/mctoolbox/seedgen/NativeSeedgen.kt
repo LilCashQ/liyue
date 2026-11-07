@@ -267,4 +267,26 @@ internal object NativeSeedgen {
     ): Int
 
     external fun runScript(script: String, seed: Long, version: Int): String?
+
+    /**
+     * Full flower farm windows; returns the row count, each row is 16 ints:
+     * cx, cz, sideX, sideZ, flowerArea, paleArea, swampArea,
+     * flowerX, flowerY, flowerZ, paleX, paleZ, swampX, swampZ, netherRank, bonusMask.
+     */
+    external fun flowerSearch(
+        seed: Long,
+        version: Int,
+        minX: Int,
+        minZ: Int,
+        maxX: Int,
+        maxZ: Int,
+        longSide: Int,
+        shortSide: Int,
+        squareOnly: Int,
+        requirePale: Int,
+        requireBothBonus: Int,
+        requireBasalt: Int,
+        maxRows: Int,
+        out: IntArray,
+    ): Int
 }

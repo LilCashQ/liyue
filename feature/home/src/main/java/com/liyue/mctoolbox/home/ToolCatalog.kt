@@ -23,6 +23,7 @@ object ToolCatalog {
     const val STRUCTURE_FINDER = "structure_finder"
     const val BEDROCK_LIBRARY = "bedrock_library"
     const val SCRIPT_STUDIO = "script_studio"
+    const val FLOWER_FARM = "flower_farm"
 
     val all: List<ToolEntry> = listOf(
         ToolEntry(
@@ -51,6 +52,13 @@ object ToolCatalog {
             title = "脚本工坊",
             subtitle = "写 Lua 搜种子，和 cubiomes-viewer 一样",
             icon = Icons.Filled.Edit,
+            available = true,
+        ),
+        ToolEntry(
+            id = FLOWER_FARM,
+            title = "全花农场",
+            subtitle = "花林 + 沼泽 + 苍白花园挤在一个窗口里",
+            icon = Icons.Filled.Star,
             available = true,
         ),
         ToolEntry(

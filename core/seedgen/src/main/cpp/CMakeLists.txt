@@ -52,6 +52,8 @@ add_library(liyue_seedgen SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/liyue_bedrock_jni.c
     ${CMAKE_CURRENT_SOURCE_DIR}/liyue_dungeon.c
     liyue_quad.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/liyue_flower.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/liyue_flower_jni.c
     ${CMAKE_CURRENT_SOURCE_DIR}/liyue_dungeon_jni.c
     liyue_quad_jni.c
     liyue_lua.c
