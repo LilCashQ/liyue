@@ -490,10 +490,10 @@ private fun SeedSheet(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Dimension.entries.forEach { dimension ->
-                FilterChip(
+                PillChip(
+                    label = dimension.label,
                     selected = state.dimension == dimension,
                     onClick = { onDimensionChange(dimension) },
-                    label = { Text(dimension.label) },
                 )
             }
         }
@@ -1563,25 +1563,31 @@ private fun StructureListSheet(
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(types) { type ->
                     val on = type !in hiddenTypes
-                    FilterChip(
+                    PillChipSurface(
                         selected = on,
                         onClick = {
                             hiddenTypes = if (on) hiddenTypes + type else hiddenTypes - type
                         },
-                        label = {
-                            Text("${type.label} ${state.structures.count { it.type == type }}")
-                        },
-                        leadingIcon = {
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .size(10.dp)
+                                    .size(9.dp)
                                     .background(
                                         if (on) type.color else type.color.copy(alpha = 0.3f),
                                         RoundedCornerShape(50),
                                     ),
                             )
-                        },
-                    )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "${type.label} ${state.structures.count { it.type == type }}",
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1667,21 +1673,20 @@ private fun FeatureChips(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(types) { type ->
-            FilterChip(
-                selected = type in enabled,
-                onClick = { onToggle(type) },
-                label = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(9.dp)
-                                .background(type.color, RoundedCornerShape(50)),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(type.label, style = MaterialTheme.typography.labelMedium)
-                    }
-                },
-            )
+            PillChipSurface(selected = type in enabled, onClick = { onToggle(type) }) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(9.dp)
+                            .background(type.color, RoundedCornerShape(50)),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(type.label, style = MaterialTheme.typography.labelMedium)
+                }
+            }
         }
     }
 }
@@ -1961,12 +1966,7 @@ private fun SettingsToggle(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    FilterChip(
-        selected = active,
-        onClick = onClick,
-        enabled = enabled,
-        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-    )
+    PillChip(label = label, selected = active, onClick = onClick, enabled = enabled)
 }
 
 @Composable
@@ -2223,10 +2223,10 @@ private fun UndergroundSheet(
         Text("叠加到地图", style = MaterialTheme.typography.labelLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MapOverlay.entries.forEach { mode ->
-                FilterChip(
+                PillChip(
+                    label = mode.label,
                     selected = state.overlayMode == mode,
                     onClick = { onOverlayChange(mode) },
-                    label = { Text(mode.label) },
                 )
             }
         }
@@ -2290,11 +2290,10 @@ private fun UndergroundSheet(
             Text("范围", style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.width(8.dp))
             listOf(256, 512, 1024).forEach { span ->
-                FilterChip(
+                PillChip(
+                    label = "$span",
                     selected = state.undergroundSpan == span,
                     onClick = { onSpanChange(span) },
-                    label = { Text("$span") },
-                    modifier = Modifier.padding(end = 6.dp),
                 )
             }
         }
@@ -2320,10 +2319,10 @@ private fun UndergroundSheet(
         Text("显示的图层", style = MaterialTheme.typography.labelLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(1 to "实心方块", 2 to "洞穴", 4 to "峡谷").forEach { (bit, label) ->
-                FilterChip(
+                PillChip(
+                    label = label,
                     selected = state.undergroundLayers and bit != 0,
                     onClick = { onLayersChange(state.undergroundLayers xor bit) },
-                    label = { Text(label) },
                 )
             }
         }

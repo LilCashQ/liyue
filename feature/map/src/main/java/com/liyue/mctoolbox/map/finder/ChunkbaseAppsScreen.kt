@@ -105,9 +105,9 @@ private fun AppCard(app: ChunkbaseApp, onClick: () -> Unit) {
             .fillMaxWidth()
             .alpha(if (app.available) 1f else 0.55f)
             .clickable(enabled = app.available, onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {

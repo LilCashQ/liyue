@@ -495,15 +495,15 @@ fun FlowerFarmScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(
-                                selected = state.useShortSide,
-                                onClick = { state = state.copy(useShortSide = !state.useShortSide) },
-                                label = { Text("启用短边") },
+                            PillChip(
+                                    label = "启用短边",
+                                    selected = state.useShortSide,
+                                    onClick = { state = state.copy(useShortSide = !state.useShortSide) },
                             )
-                            FilterChip(
-                                selected = state.fastMode,
-                                onClick = { state = state.copy(fastMode = !state.fastMode) },
-                                label = { Text("快速模式") },
+                            PillChip(
+                                    label = "快速模式",
+                                    selected = state.fastMode,
+                                    onClick = { state = state.copy(fastMode = !state.fastMode) },
                             )
                         }
                     }
@@ -520,20 +520,20 @@ fun FlowerFarmScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(
-                                selected = state.requireBirch,
-                                onClick = { state = state.copy(requireBirch = !state.requireBirch) },
-                                label = { Text("要白桦森林") },
+                            PillChip(
+                                    label = "要白桦森林",
+                                    selected = state.requireBirch,
+                                    onClick = { state = state.copy(requireBirch = !state.requireBirch) },
                             )
-                            FilterChip(
-                                selected = state.requireCherry,
-                                onClick = { state = state.copy(requireCherry = !state.requireCherry) },
-                                label = { Text("要樱花林") },
+                            PillChip(
+                                    label = "要樱花林",
+                                    selected = state.requireCherry,
+                                    onClick = { state = state.copy(requireCherry = !state.requireCherry) },
                             )
-                            FilterChip(
-                                selected = state.requireBasalt,
-                                onClick = { state = state.copy(requireBasalt = !state.requireBasalt) },
-                                label = { Text("要玄武岩") },
+                            PillChip(
+                                    label = "要玄武岩",
+                                    selected = state.requireBasalt,
+                                    onClick = { state = state.copy(requireBasalt = !state.requireBasalt) },
                             )
                         }
                         Row(
@@ -580,11 +580,11 @@ fun FlowerFarmScreen(
                                 modifier = Modifier.width(96.dp),
                             )
                         }
-                        FilterChip(
-                            selected = state.requirePale && paleApplies,
-                            onClick = { state = state.copy(requirePale = !state.requirePale) },
-                            enabled = paleApplies,
-                            label = { Text(if (paleApplies) "必须有苍白花园" else "苍白花园（1.21.4+ 才有）") },
+                        PillChip(
+                                label = if (paleApplies) "必须有苍白花园" else "苍白花园（1.21.4+ 才有）",
+                                selected = state.requirePale && paleApplies,
+                                onClick = { state = state.copy(requirePale = !state.requirePale) },
+                                enabled = paleApplies,
                         )
                     }
                 }

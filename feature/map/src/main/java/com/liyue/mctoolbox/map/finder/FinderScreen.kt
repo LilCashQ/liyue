@@ -59,11 +59,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.liyue.mctoolbox.map.GameVersion
 import com.liyue.mctoolbox.map.GameVersions
+import com.liyue.mctoolbox.map.PillChip
 import com.liyue.mctoolbox.map.groupLabel
 import com.liyue.mctoolbox.map.MapTarget
 import com.liyue.mctoolbox.map.StructureType
 import com.liyue.mctoolbox.seedgen.Dimension
 import com.liyue.mctoolbox.map.R
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -204,14 +207,23 @@ private fun FinderSeedCard(
     onVersionChange: (GameVersion) -> Unit,
     onTabChange: (FinderTab) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
+                TextField(
                     value = state.seedText,
                     onValueChange = onSeedChange,
-                    label = { Text("种子") },
+                    placeholder = { Text("种子", style = MaterialTheme.typography.bodyMedium) },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                    ),
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(10.dp))
@@ -228,10 +240,10 @@ private fun FinderSeedCard(
             Spacer(Modifier.height(10.dp))
             androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(FinderTab.entries) { tab ->
-                    FilterChip(
+                    PillChip(
+                        label = tab.label,
                         selected = state.tab == tab,
                         onClick = { onTabChange(tab) },
-                        label = { Text(tab.label) },
                     )
                 }
             }
@@ -255,7 +267,7 @@ private fun FinderQueryCard(
     onUseSpawn: () -> Unit,
     onSearch: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(14.dp)) {
             when (state.tab) {
                 FinderTab.STRUCTURE -> {
@@ -284,10 +296,10 @@ private fun FinderQueryCard(
                 FinderTab.BIOME -> {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(Dimension.OVERWORLD, Dimension.NETHER, Dimension.END).forEach { dimension ->
-                            FilterChip(
+                            PillChip(
+                                label = dimension.label,
                                 selected = state.biomeDimension == dimension,
                                 onClick = { onBiomeDimensionChange(dimension) },
-                                label = { Text(dimension.label) },
                             )
                         }
                     }
@@ -330,10 +342,10 @@ private fun FinderQueryCard(
                             com.liyue.mctoolbox.seedgen.OreKind.IRON_VEIN,
                             com.liyue.mctoolbox.seedgen.OreKind.COPPER_VEIN,
                         ).forEach { kind ->
-                            FilterChip(
+                            PillChip(
+                                label = kind.label,
                                 selected = state.veinKind == kind,
                                 onClick = { onVeinKindChange(kind) },
-                                label = { Text(kind.label) },
                             )
                         }
                     }
@@ -499,7 +511,7 @@ private fun FinderQueryCard(
 
 @Composable
 private fun FinderHitCard(hit: FinderHit, onOpenMap: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
