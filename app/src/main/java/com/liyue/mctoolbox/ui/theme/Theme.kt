@@ -1,46 +1,82 @@
 package com.liyue.mctoolbox.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 private val LightColors = lightColorScheme(
-    primary = Blue40,
+    primary = Moss40,
     onPrimary = Color.White,
-    primaryContainer = Blue90,
-    onPrimaryContainer = Blue10,
-    secondary = Cyan40,
+    primaryContainer = Moss90,
+    onPrimaryContainer = Moss10,
+    secondary = Clay40,
     onSecondary = Color.White,
-    secondaryContainer = Cyan90,
-    onSecondaryContainer = Color(0xFF00344A),
-    background = SurfaceLight,
-    onBackground = Slate10,
-    surface = Color.White,
-    onSurface = Slate10,
-    surfaceVariant = Slate90,
-    onSurfaceVariant = Color(0xFF44546A),
-    outline = Color(0xFF8A9BB4),
+    secondaryContainer = Clay90,
+    onSecondaryContainer = Color(0xFF3A220B),
+    tertiary = Color(0xFF3F5E7A),
+    onTertiary = Color.White,
+    background = Paper,
+    onBackground = Ink10,
+    surface = Paper,
+    onSurface = Ink10,
+    surfaceVariant = Ink90,
+    onSurfaceVariant = Color(0xFF4A5347),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFFBFBF5),
+    surfaceContainer = PaperDim,
+    surfaceContainerHigh = Color(0xFFE9EBE0),
+    surfaceContainerHighest = Color(0xFFE2E5D8),
+    outline = Color(0xFF77816F),
+    outlineVariant = Color(0xFFCBD2C4),
+    error = Color(0xFFB3261E),
+    onError = Color.White,
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Blue80,
-    onPrimary = Blue10,
-    primaryContainer = Blue30,
-    onPrimaryContainer = Blue90,
-    secondary = Cyan80,
-    onSecondary = Color(0xFF00344A),
-    secondaryContainer = Color(0xFF00506F),
-    onSecondaryContainer = Cyan90,
-    background = SurfaceDark,
-    onBackground = Color(0xFFE8EEF8),
-    surface = Color(0xFF121A28),
-    onSurface = Color(0xFFE8EEF8),
-    surfaceVariant = Slate20,
-    onSurfaceVariant = Color(0xFFB6C4D8),
-    outline = Color(0xFF6F8099),
+    primary = Moss80,
+    onPrimary = Moss10,
+    primaryContainer = Moss30,
+    onPrimaryContainer = Moss90,
+    secondary = Clay80,
+    onSecondary = Color(0xFF2C1A08),
+    secondaryContainer = Color(0xFF5B3A18),
+    onSecondaryContainer = Clay90,
+    tertiary = Color(0xFFA9C6E4),
+    onTertiary = Color(0xFF0B2437),
+    background = PaperDark,
+    onBackground = Color(0xFFE7EADC),
+    surface = PaperDark,
+    onSurface = Color(0xFFE7EADC),
+    surfaceVariant = Ink20,
+    onSurfaceVariant = Color(0xFFB9C2AE),
+    surfaceContainerLowest = Color(0xFF0A0D0A),
+    surfaceContainerLow = Color(0xFF141813),
+    surfaceContainer = Color(0xFF181D17),
+    surfaceContainerHigh = Color(0xFF212720),
+    surfaceContainerHighest = Color(0xFF2A3129),
+    outline = Color(0xFF8A9385),
+    outlineVariant = Color(0xFF3B4238),
+    error = Color(0xFFF2B8B5),
+    onError = Color(0xFF601410),
+    errorContainer = Color(0xFF8C1D18),
+    onErrorContainer = Color(0xFFF9DEDC),
+)
+
+/** One radius scale, so cards, sheets and chips feel like the same app. */
+val LiYueShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp),
 )
 
 @Composable
@@ -51,6 +87,7 @@ fun LiYueTheme(
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
         typography = LiYueTypography,
+        shapes = LiYueShapes,
         content = content,
     )
 }

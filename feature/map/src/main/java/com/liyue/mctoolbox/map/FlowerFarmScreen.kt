@@ -1,5 +1,6 @@
 package com.liyue.mctoolbox.map
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -126,9 +127,9 @@ fun FlowerFarmScreen(
         )
     }
 
-    fun run() {
+    fun run(override: FlowerFarmState? = null) {
         if (state.running) return
-        val snapshot = state
+        val snapshot = override ?: state
         val rect = bounds(snapshot)
         val longSide = snapshot.longSide.toIntOr(640).coerceIn(64, 1024)
         val shortSide = if (snapshot.useShortSide) {
@@ -643,11 +644,10 @@ fun FlowerFarmScreen(
             FlowerHistorySheet(
                 entries = history,
                 onPick = { entry ->
-                    val version = GameVersions.find(entry.versionLabel) ?: state.version
                     val exact = GameVersions.find(entry.versionLabel)
-                    state = state.copy(
+                    val applied = state.copy(
                         seedText = entry.seedText,
-                        version = exact ?: version,
+                        version = exact ?: state.version,
                         minX = entry.minX.toString(),
                         minZ = entry.minZ.toString(),
                         maxX = entry.maxX.toString(),
@@ -664,7 +664,9 @@ fun FlowerFarmScreen(
                         requireCherry = entry.requireCherry,
                         requireBasalt = entry.requireBasalt,
                     )
+                    state = applied
                     showHistory = false
+                    run(applied)
                 },
                 onDelete = { entry ->
                     scope.launch {
@@ -772,7 +774,7 @@ private fun FlowerHistorySheet(
             }
         }
         Text(
-            "点一条把种子、版本和全部参数填回去，再点开始搜索。",
+            "点一条就会把种子、版本和全部参数填回去，并立刻重跑一次。",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -788,6 +790,7 @@ private fun FlowerHistorySheet(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { onPick(entry) }
                             .padding(vertical = 8.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -809,7 +812,7 @@ private fun FlowerHistorySheet(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            TextButton(onClick = { onPick(entry) }) { Text("复用") }
+                            TextButton(onClick = { onPick(entry) }) { Text("复跑") }
                             IconButton(onClick = { onDelete(entry) }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "删除")
                             }
