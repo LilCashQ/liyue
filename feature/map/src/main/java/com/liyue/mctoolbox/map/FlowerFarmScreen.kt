@@ -347,7 +347,7 @@ fun FlowerFarmScreen(
             }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
+                    LiYueField(
                         value = state.seedText,
                         onValueChange = { state = state.copy(seedText = it) },
                         label = { Text("种子") },
@@ -395,14 +395,14 @@ fun FlowerFarmScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.minX,
                                 onValueChange = { state = state.copy(minX = it) },
                                 label = { Text("MinX") },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
                             )
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.maxX,
                                 onValueChange = { state = state.copy(maxX = it) },
                                 label = { Text("MaxX") },
@@ -412,14 +412,14 @@ fun FlowerFarmScreen(
                         }
                         Spacer(Modifier.width(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.minZ,
                                 onValueChange = { state = state.copy(minZ = it) },
                                 label = { Text("MinZ") },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
                             )
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.maxZ,
                                 onValueChange = { state = state.copy(maxZ = it) },
                                 label = { Text("MaxZ") },
@@ -457,14 +457,14 @@ fun FlowerFarmScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.longSide,
                                 onValueChange = { state = state.copy(longSide = it) },
                                 label = { Text("窗口长边") },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
                             )
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.shortSide,
                                 onValueChange = { state = state.copy(shortSide = it) },
                                 label = { Text("窗口短边") },
@@ -476,7 +476,7 @@ fun FlowerFarmScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.moduleGap,
                                 onValueChange = { state = state.copy(moduleGap = it) },
                                 label = { Text("模距") },
@@ -565,14 +565,14 @@ fun FlowerFarmScreen(
                                     }
                                 }
                             }
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.flowerMargin,
                                 onValueChange = { state = state.copy(flowerMargin = it) },
                                 label = { Text("花林离边距离") },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
                             )
-                            OutlinedTextField(
+                            LiYueField(
                                 value = state.threads,
                                 onValueChange = { state = state.copy(threads = it) },
                                 label = { Text("线程数") },
@@ -672,6 +672,7 @@ fun FlowerFarmScreen(
         ModalBottomSheet(
             onDismissRequest = { showHistory = false },
             sheetState = historySheet,
+            dragHandle = { LiYueSheetHandle() },
         ) {
             FlowerHistorySheet(
                 entries = history,

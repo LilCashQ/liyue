@@ -271,7 +271,7 @@ fun SeedMapScreen(
     }
 
     if (showSeedSheet) {
-        ModalBottomSheet(onDismissRequest = { showSeedSheet = false }) {
+        ModalBottomSheet(onDismissRequest = { showSeedSheet = false }, dragHandle = { LiYueSheetHandle() }) {
             SeedSheet(
                 state = state,
                 onSeedChange = viewModel::onSeedTextChange,
@@ -286,7 +286,7 @@ fun SeedMapScreen(
     }
 
     if (showSettings) {
-        ModalBottomSheet(onDismissRequest = { showSettings = false }) {
+        ModalBottomSheet(onDismissRequest = { showSettings = false }, dragHandle = { LiYueSheetHandle() }) {
             SettingsSheet(
                 state = state,
                 onJump = { x, z ->
@@ -315,6 +315,7 @@ fun SeedMapScreen(
                 showDetails = false
                 viewModel.closeStructureDetails()
             },
+            dragHandle = { LiYueSheetHandle() },
         ) {
             StructureDetailsSheet(
                 state = state,
@@ -327,7 +328,7 @@ fun SeedMapScreen(
     }
 
     if (showUnderground) {
-        ModalBottomSheet(onDismissRequest = { showUnderground = false }) {
+        ModalBottomSheet(onDismissRequest = { showUnderground = false }, dragHandle = { LiYueSheetHandle() }) {
             UndergroundSheet(
                 state = state,
                 onYChange = { y ->
@@ -346,7 +347,7 @@ fun SeedMapScreen(
     }
 
     if (showLegend && state.legend.isNotEmpty()) {
-        ModalBottomSheet(onDismissRequest = { showLegend = false }) {
+        ModalBottomSheet(onDismissRequest = { showLegend = false }, dragHandle = { LiYueSheetHandle() }) {
             LegendSheet(
                 legend = state.legend,
                 seedText = state.seedText,
@@ -362,7 +363,7 @@ fun SeedMapScreen(
     }
 
     if (showStructureFilters) {
-        ModalBottomSheet(onDismissRequest = { showStructureFilters = false }) {
+        ModalBottomSheet(onDismissRequest = { showStructureFilters = false }, dragHandle = { LiYueSheetHandle() }) {
             StructureFilterSheet(
                 dimension = state.dimension,
                 enabled = state.enabledStructures,
@@ -420,7 +421,7 @@ private fun SeedSheet(
     ) {
         Text("种子与版本", style = MaterialTheme.typography.titleMedium)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
+            LiYueField(
                 value = state.seedText,
                 onValueChange = onSeedChange,
                 label = { Text("种子") },
@@ -437,7 +438,7 @@ private fun SeedSheet(
             expanded = versionExpanded,
             onExpandedChange = { versionExpanded = it },
         ) {
-            OutlinedTextField(
+            LiYueField(
                 value = state.gameVersion.label,
                 onValueChange = {},
                 readOnly = true,
@@ -1001,7 +1002,7 @@ private fun LegendSheet(
             }
         }
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
+        LiYueField(
             value = legendQuery,
             onValueChange = { legendQuery = it },
             modifier = Modifier
@@ -1438,7 +1439,7 @@ private fun StructureFilterSheet(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
+        LiYueField(
             value = filterQuery,
             onValueChange = { filterQuery = it },
             modifier = Modifier
@@ -1592,7 +1593,7 @@ private fun StructureListSheet(
             }
         }
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
+        LiYueField(
             value = listQuery,
             onValueChange = { listQuery = it },
             modifier = Modifier
@@ -1926,7 +1927,7 @@ private fun SettingsSheet(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedTextField(
+            LiYueField(
                 value = xText,
                 onValueChange = { xText = it },
                 label = { Text("X") },
@@ -1936,7 +1937,7 @@ private fun SettingsSheet(
                 ),
                 modifier = Modifier.weight(1f),
             )
-            OutlinedTextField(
+            LiYueField(
                 value = zText,
                 onValueChange = { zText = it },
                 label = { Text("Z") },

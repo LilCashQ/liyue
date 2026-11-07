@@ -219,7 +219,7 @@ fun ScriptScreen(
             }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
+                    LiYueField(
                         value = state.seedText,
                         onValueChange = { state = state.copy(seedText = it) },
                         label = { Text("种子") },
@@ -259,7 +259,7 @@ fun ScriptScreen(
                 }
             }
             item {
-                OutlinedTextField(
+                LiYueField(
                     value = state.script,
                     onValueChange = { state = state.copy(script = it) },
                     label = { Text("脚本") },

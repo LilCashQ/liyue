@@ -59,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.liyue.mctoolbox.map.GameVersion
 import com.liyue.mctoolbox.map.GameVersions
+import com.liyue.mctoolbox.map.LiYueField
 import com.liyue.mctoolbox.map.PillChip
 import com.liyue.mctoolbox.map.groupLabel
 import com.liyue.mctoolbox.map.MapTarget
@@ -398,7 +399,7 @@ private fun FinderQueryCard(
                         onSelect = onStructureChange,
                     )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
+                    LiYueField(
                         value = state.seedQueueText,
                         onValueChange = onSeedQueueChange,
                         label = { Text("种子列表（一行一颗，或用逗号分隔）") },
@@ -407,7 +408,7 @@ private fun FinderQueryCard(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
+                    LiYueField(
                         value = state.minCountText,
                         onValueChange = onMinCountChange,
                         label = { Text("至少命中几个") },
@@ -452,7 +453,7 @@ private fun FinderQueryCard(
             if (state.tab != FinderTab.SPAWN) {
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
+                    LiYueField(
                         value = state.centerXText,
                         onValueChange = onCenterXChange,
                         label = { Text("中心 X") },
@@ -461,7 +462,7 @@ private fun FinderQueryCard(
                         modifier = Modifier.weight(1f),
                     )
                     Spacer(Modifier.width(10.dp))
-                    OutlinedTextField(
+                    LiYueField(
                         value = state.centerZText,
                         onValueChange = onCenterZChange,
                         label = { Text("中心 Z") },
@@ -472,7 +473,7 @@ private fun FinderQueryCard(
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
+                    LiYueField(
                         value = state.radiusText,
                         onValueChange = onRadiusChange,
                         label = { Text("半径（方块）") },
@@ -481,7 +482,7 @@ private fun FinderQueryCard(
                         modifier = Modifier.weight(1f),
                     )
                     Spacer(Modifier.width(10.dp))
-                    OutlinedTextField(
+                    LiYueField(
                         value = state.limitText,
                         onValueChange = onLimitChange,
                         label = { Text("数量") },
