@@ -49,7 +49,9 @@ add_library(liyue_seedgen SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/liyue_bedrock.c
     ${CMAKE_CURRENT_SOURCE_DIR}/liyue_bedrock_jni.c
     ${CMAKE_CURRENT_SOURCE_DIR}/liyue_dungeon.c
+    liyue_quad.c
     ${CMAKE_CURRENT_SOURCE_DIR}/liyue_dungeon_jni.c
+    liyue_quad_jni.c
     ${CUBIOMES_DIR}/loot/items.c
     ${CUBIOMES_DIR}/loot/loot_functions.c
     ${CUBIOMES_DIR}/loot/loot_table_context.c

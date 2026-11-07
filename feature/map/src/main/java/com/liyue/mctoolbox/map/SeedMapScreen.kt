@@ -1421,6 +1421,10 @@ private fun StructureFilterSheet(
 ) {
     val types = StructureType.forDimension(dimension)
         .filter { !edition.isBedrock || it in StructureType.BEDROCK_SUPPORTED }
+    var filterQuery by remember { mutableStateOf("") }
+    val shownTypes = types.filter {
+        filterQuery.isBlank() || it.label.contains(filterQuery.trim(), ignoreCase = true)
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1429,13 +1433,31 @@ private fun StructureFilterSheet(
     ) {
         Text("结构图层", style = MaterialTheme.typography.titleMedium)
         Text(
-            text = "当前维度：${dimension.label}",
+            text = "当前维度：${dimension.label} · 已开 ${types.count { it in enabled }} / ${types.size}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = filterQuery,
+            onValueChange = { filterQuery = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp),
+            singleLine = true,
+            placeholder = { Text("搜索结构名", style = MaterialTheme.typography.bodySmall) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (filterQuery.isNotEmpty()) {
+                    IconButton(onClick = { filterQuery = "" }) {
+                        Icon(Icons.Filled.Close, contentDescription = "清空")
+                    }
+                }
+            },
+        )
+        Spacer(Modifier.height(8.dp))
         LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
-            items(types) { type ->
+            items(shownTypes) { type ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -126,6 +126,10 @@ class FinderViewModel @Inject constructor(
 
     fun onLimitChange(text: String) = _state.update { it.copy(limitText = text) }
 
+    fun onSeedQueueChange(text: String) = _state.update { it.copy(seedQueueText = text) }
+
+    fun onMinCountChange(text: String) = _state.update { it.copy(minCountText = text) }
+
     fun useSpawnAsCenter() {
         val snapshot = _state.value
         viewModelScope.launch {
@@ -137,10 +141,11 @@ class FinderViewModel @Inject constructor(
 
     fun openInMap(hit: FinderHit) {
         val snapshot = _state.value
+        val seed = hit.seed ?: SeedEngine.parseJavaSeed(snapshot.seedText)
         _mapRequests.tryEmit(
             MapTarget(
-                seed = SeedEngine.parseJavaSeed(snapshot.seedText),
-                seedText = snapshot.seedText,
+                seed = seed,
+                seedText = (hit.seed ?: SeedEngine.parseJavaSeed(snapshot.seedText)).toString(),
                 versionLabel = snapshot.version.label,
                 dimension = hit.dimension,
                 centerX = hit.x.toDouble(),
@@ -168,6 +173,14 @@ class FinderViewModel @Inject constructor(
             }
         }
     }
+
+    private fun parseSeedQueue(text: String): List<Long> =
+        text.split('\n', ',', ' ', '\t', ';')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .map { SeedEngine.parseJavaSeed(it) }
+            .distinct()
+            .take(200)
 
     private suspend fun runSearch(state: FinderUiState): List<FinderHit> {
         val seed = SeedEngine.parseJavaSeed(state.seedText)
@@ -242,6 +255,34 @@ class FinderViewModel @Inject constructor(
                 radius = state.radius,
                 limit = state.limit,
             )
+
+            FinderTab.QUAD_HUT -> finder.searchQuadHuts(
+                seed = seed,
+                version = version,
+                centerX = state.centerX,
+                centerZ = state.centerZ,
+                radius = state.radius,
+                limit = state.limit,
+                edition = state.version.edition,
+            )
+
+            FinderTab.SEED_QUEUE -> {
+                val seeds = parseSeedQueue(state.seedQueueText)
+                if (seeds.isEmpty()) {
+                    throw IllegalStateException("先填几颗种子：一行一颗，或用逗号/空格分隔")
+                }
+                finder.runSeedQueue(
+                    seeds = seeds,
+                    version = version,
+                    edition = state.version.edition,
+                    type = state.structure,
+                    centerX = state.centerX,
+                    centerZ = state.centerZ,
+                    radius = state.radius,
+                    minCount = state.minCountText.trim().toIntOrNull()?.coerceIn(1, 64) ?: 2,
+                    limit = state.limit,
+                )
+            }
 
             FinderTab.DUNGEON -> finder.searchDungeons(
                 seed = seed,

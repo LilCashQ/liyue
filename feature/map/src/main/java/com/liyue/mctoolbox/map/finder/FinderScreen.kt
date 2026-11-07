@@ -124,6 +124,8 @@ fun FinderScreen(
                     onCenterZChange = viewModel::onCenterZChange,
                     onRadiusChange = viewModel::onRadiusChange,
                     onLimitChange = viewModel::onLimitChange,
+                    onSeedQueueChange = viewModel::onSeedQueueChange,
+                    onMinCountChange = viewModel::onMinCountChange,
                     onUseSpawn = viewModel::useSpawnAsCenter,
                     onSearch = viewModel::search,
                 )
@@ -234,6 +236,8 @@ private fun FinderQueryCard(
     onCenterZChange: (String) -> Unit,
     onRadiusChange: (String) -> Unit,
     onLimitChange: (String) -> Unit,
+    onSeedQueueChange: (String) -> Unit,
+    onMinCountChange: (String) -> Unit,
     onUseSpawn: () -> Unit,
     onSearch: () -> Unit,
 ) {
@@ -343,6 +347,51 @@ private fun FinderQueryCard(
                             "实心/空气校验，所以给出的是精确坐标。每个区块 14 次尝试" +
                             "（地表下 10 次 Y 0-319，深层 4 次 Y -58 到 -1）。" +
                             "半径越大扫的区块越多，1024 大约 10 秒。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+
+                FinderTab.QUAD_HUT -> {
+                    Text(
+                        text = "四女巫小屋（quad-hut）：四座沼泽小屋挤在同一个 128 方块球里，" +
+                            "中间就是女巫农场的最佳挂机点。先按半径把沼泽小屋全找出来，" +
+                            "再配对找近似正方形的四角。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+
+                FinderTab.SEED_QUEUE -> {
+                    val supported = StructureSupport.forVersion(state.version.engine)
+                    PickerField(
+                        label = "结构类型",
+                        selected = state.structure.label,
+                        options = supported,
+                        optionLabel = { it.label },
+                        onSelect = onStructureChange,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.seedQueueText,
+                        onValueChange = onSeedQueueChange,
+                        label = { Text("种子列表（一行一颗，或用逗号分隔）") },
+                        minLines = 3,
+                        maxLines = 6,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.minCountText,
+                        onValueChange = onMinCountChange,
+                        label = { Text("至少命中几个") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "逐颗种子在半径内数结构，够数的才留下；点结果直接用那颗种子打开地图。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline,
                     )

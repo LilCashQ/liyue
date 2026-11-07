@@ -449,6 +449,46 @@ class SeedEngine(
         return if (status == 0) out else null
     }
 
+    /** A quad witch hut constellation: the AFK block plus its spawning spaces. */
+    data class QuadHut(val x: Int, val z: Int, val spawnSpaces: Int)
+
+    /**
+     * Quad witch huts around a block position. The native side enumerates the
+     * seed's quad-bases inside a window of 512-block structure regions, which
+     * is the same search cubiomes-viewer runs.
+     */
+    fun quadHutsBlocking(
+        seed: Long,
+        version: McVersion,
+        centerX: Int,
+        centerZ: Int,
+        radius: Int,
+        maxQuads: Int = 32,
+    ): List<QuadHut> {
+        val window = radius.coerceIn(512, 8192)
+        val minRegionX = Math.floorDiv(centerX - window, 512)
+        val maxRegionX = Math.floorDiv(centerX + window + 511, 512)
+        val minRegionZ = Math.floorDiv(centerZ - window, 512)
+        val maxRegionZ = Math.floorDiv(centerZ + window + 511, 512)
+        val capacity = maxQuads * 3
+        val out = IntArray(capacity)
+        val count = NativeSeedgen.quadHuts(
+            seed = seed,
+            version = version.id,
+            minRegionX = minRegionX,
+            minRegionZ = minRegionZ,
+            maxRegionX = maxRegionX,
+            maxRegionZ = maxRegionZ,
+            out = out,
+        )
+        if (count <= 0) return emptyList()
+        val hits = ArrayList<QuadHut>(count)
+        for (i in 0 until count) {
+            hits += QuadHut(out[i * 3], out[i * 3 + 1], out[i * 3 + 2])
+        }
+        return hits
+    }
+
     /** One chest that holds the searched item: block position plus stack size. */
     data class LootChest(val x: Int, val z: Int, val count: Int)
 

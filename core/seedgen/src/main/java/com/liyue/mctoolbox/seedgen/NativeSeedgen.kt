@@ -255,4 +255,14 @@ internal object NativeSeedgen {
         itemName: String,
         out: IntArray,
     ): Int
+
+    external fun quadHuts(
+        seed: Long,
+        version: Int,
+        minRegionX: Int,
+        minRegionZ: Int,
+        maxRegionX: Int,
+        maxRegionZ: Int,
+        out: IntArray,
+    ): Int
 }

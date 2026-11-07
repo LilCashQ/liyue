@@ -18,6 +18,8 @@ enum class FinderTab(val label: String) {
     GOLDEN_APPLE("宝箱战利品"),
     LAVA_POOL("岩浆湖"),
     DUNGEON("地牢"),
+    QUAD_HUT("四女巫小屋"),
+    SEED_QUEUE("种子队列"),
 }
 
 /** A single search result: always a block position plus context. */
@@ -28,6 +30,8 @@ data class FinderHit(
     val distance: Int,
     val detail: String? = null,
     val dimension: Dimension = Dimension.OVERWORLD,
+    /** Set by the seed queue, where every row is a different world. */
+    val seed: Long? = null,
 )
 
 data class BiomeOption(val id: Int, val name: String, val label: String)
@@ -45,6 +49,8 @@ data class FinderUiState(
     val centerZText: String = "0",
     val radiusText: String = "2048",
     val limitText: String = "20",
+    val seedQueueText: String = "",
+    val minCountText: String = "2",
     val loading: Boolean = false,
     val error: String? = null,
     val hits: List<FinderHit> = emptyList(),
@@ -58,7 +64,8 @@ data class FinderUiState(
     val dimension: Dimension
         get() = when (tab) {
             FinderTab.BIOME -> biomeDimension
-            FinderTab.ORE_VEIN, FinderTab.LAVA_POOL, FinderTab.DUNGEON -> Dimension.OVERWORLD
+            FinderTab.ORE_VEIN, FinderTab.LAVA_POOL, FinderTab.DUNGEON,
+            FinderTab.QUAD_HUT, FinderTab.SEED_QUEUE -> Dimension.OVERWORLD
             else -> structure.dimension
         }
 }

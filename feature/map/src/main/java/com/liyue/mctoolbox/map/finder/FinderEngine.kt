@@ -10,6 +10,7 @@ import com.liyue.mctoolbox.seedgen.StructurePos
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -57,6 +58,86 @@ class FinderEngine(private val engine: SeedEngine) {
                 dimension = dimension,
             )
         }
+    }
+
+    /**
+     * Quad witch huts, as cubiomes-viewer reports them: the native side walks
+     * the seed's quad-bases inside a window of 512-block structure regions and
+     * rebuilds the four huts of each base, so the AFK position is exact.
+     */
+    suspend fun searchQuadHuts(
+        seed: Long,
+        version: McVersion,
+        centerX: Int,
+        centerZ: Int,
+        radius: Int,
+        limit: Int,
+        edition: Edition = Edition.JAVA,
+    ): List<FinderHit> = withContext(Dispatchers.Default) {
+        if (edition.isBedrock) throw IllegalStateException("四女巫小屋只支持 Java 版算法")
+        val quads = engine.quadHutsBlocking(
+            seed = seed,
+            version = version,
+            centerX = centerX,
+            centerZ = centerZ,
+            radius = radius,
+            maxQuads = 32,
+        )
+        quads.map { quad ->
+            FinderHit(
+                title = "四女巫小屋",
+                x = quad.x,
+                z = quad.z,
+                distance = distance(quad.x, quad.z, centerX, centerZ),
+                detail = "刷怪空间 ${quad.spawnSpaces} 格 · AFK 中心",
+                dimension = Dimension.OVERWORLD,
+            )
+        }.sortedBy { it.distance }.take(limit)
+    }
+
+    /**
+     * Viewer's "Locations" tab: run the same test against a whole list of
+     * seeds, so a batch can be filtered down to the ones that qualify.
+     */
+    suspend fun runSeedQueue(
+        seeds: List<Long>,
+        version: McVersion,
+        edition: Edition,
+        type: StructureType,
+        centerX: Int,
+        centerZ: Int,
+        radius: Int,
+        minCount: Int,
+        limit: Int,
+    ): List<FinderHit> = withContext(Dispatchers.Default) {
+        val hits = mutableListOf<FinderHit>()
+        for (seed in seeds) {
+            currentCoroutineContext().ensureActive()
+            val found = collectStructures(
+                seed = seed,
+                version = version,
+                edition = edition,
+                type = type,
+                centerX = centerX,
+                centerZ = centerZ,
+                maxRadius = minOf(radius, regionCapBlocks(type)),
+                want = 64,
+            )
+            if (found.isEmpty()) continue
+            if (found.size < minCount) continue
+            val nearest = found.minByOrNull { distance(it.x, it.z, centerX, centerZ) } ?: continue
+            hits += FinderHit(
+                title = "$type.label × ${found.size}",
+                x = nearest.x,
+                z = nearest.z,
+                distance = distance(nearest.x, nearest.z, centerX, centerZ),
+                detail = "种子 $seed",
+                dimension = type.dimension,
+                seed = seed,
+            )
+            if (hits.size >= limit) break
+        }
+        hits.sortedBy { it.distance }
     }
 
     /** Grows the search box from 512 blocks until [want] hits or the cap. */
