@@ -24,9 +24,13 @@
 #include "generator.h"
 #include "noise.h"
 
-#define FLW_BIOME_Y 256
+#define FLW_BIOME_Y 63
 #define FLW_NETHER_Y 64
-#define FLW_FLOWER_AREA_MIN 2000
+#define FLW_GRADIENT_RADIUS 96
+#define FLW_PLATFORM_HALF 12
+#define FLW_FARM_Y_MIN 62
+#define FLW_FARM_Y_MAX 200
+#define FLW_FLOWER_AREA_MIN 4000
 #define FLW_MAX_CANDIDATES 512
 #define FLW_MAX_ROWS 64
 #define FLW_MARGIN 0.02f
@@ -76,6 +80,16 @@ typedef struct
     DoublePerlinNoise dpn;
     PerlinNoise oct[4];
 } FlowerNoise;
+
+/* Real 1:1 biome lookup. getBiomeAt() needs a fully wired generator and falls
+ * back to a constant biome here, so sample the climate noise directly. */
+static BiomeNoise g_bn;
+
+static int flw_biome(int x, int y, int z)
+{
+    int64_t np[6];
+    return sampleBiomeNoise(&g_bn, np, x, y, z, NULL, 0);
+}
 
 static int floor_div(int v, int d)
 {
@@ -244,20 +258,149 @@ static int flower_extremes(const FlowerNoise *fn, const int *xs, const int *zs, 
             lily[nl++] = y;
     }
     for (a = 0; a < nd; a++)
-    {
         for (b = 0; b < nl; b++)
         {
             const int span = abs(dandy[a] - lily[b]);
             if (span <= 32 && span < best)
             {
                 best = span;
-                best_y = (int) lround((dandy[a] + lily[b]) / 2.0);
+                best_y = dandy[a] < lily[b] ? dandy[a] : lily[b];
+            }
+        }
+    if (best > 32)
+        return 0;
+    *out_y = best_y;
+    return 1;
+}
+
+/*
+ * A farm is only buildable when the two gradient ends sit close enough to be
+ * on one platform: dandelion (0) and lily of the valley (10) within
+ * `radius` blocks horizontally and 32 blocks vertically, around one spot.
+ * The window-wide check above can pass with the two ends hundreds of blocks
+ * apart, which is useless in game, so this pass is the real acceptance test.
+ */
+/*
+ * Direct simulation of the farm itself: a platform half-size `half` wide, built
+ * across a few layers within +-16 blocks of `y`, must hit every one of the 11
+ * flower ids. If it does, bone meal there really yields all flowers; anything
+ * less is not an "all flower" farm no matter how the window looks.
+ */
+static int platform_covers_all(const FlowerNoise *fn, int cx, int cz, int y, int half)
+{
+    int seen[11];
+    int dx, dz, layer, i;
+    int layers[4];
+    memset(seen, 0, sizeof(seen));
+    layers[0] = y - 12;
+    layers[1] = y - 4;
+    layers[2] = y + 4;
+    layers[3] = y + 12;
+    for (layer = 0; layer < 4; layer++)
+    {
+        const int ly = layers[layer];
+        if (ly < 0 || ly > 319)
+            continue;
+        for (dz = -half; dz <= half; dz += 2)
+        {
+            for (dx = -half; dx <= half; dx += 2)
+            {
+                const int id = flower_id(fn, cx + dx, ly, cz + dz);
+                if (id >= 0 && id < 11)
+                    seen[id] = 1;
+            }
+        }
+    }
+    for (i = 0; i < 11; i++)
+        if (!seen[i])
+            return 0;
+    return 1;
+}
+
+static int compact_extremes(const FlowerNoise *fn, const int *xs, const int *zs, int count,
+                            int cx, int cz, int radius, int *out_y, int *out_x, int *out_z)
+{
+    int near_x[768], near_z[768];
+    int near = 0, i, y, a, b;
+    int dandy[160], lily[160];
+    int nd = 0, nl = 0;
+    int best = 1 << 30;
+    int best_y = 0;
+    int best_pair_a = -1, best_pair_b = -1;
+    int dandy_col[160], lily_col[160];
+    int dandy_col_index = 0, lily_col_index = 0;
+    const int radius_sq = radius * radius;
+
+    for (i = 0; i < count && near < 768; i++)
+    {
+        const int dx = xs[i] - cx;
+        const int dz = zs[i] - cz;
+        if (dx * dx + dz * dz <= radius_sq)
+        {
+            near_x[near] = xs[i];
+            near_z[near] = zs[i];
+            near++;
+        }
+    }
+    if (near == 0)
+        return 0;
+
+    for (y = 80; y <= 319; y += 2)
+    {
+        int has_dandelion = 0, has_lily = 0;
+        for (i = 0; i < near; i++)
+        {
+            const int id = flower_id(fn, near_x[i], y, near_z[i]);
+            if (id == 0)
+            {
+                has_dandelion = 1;
+                dandy_col_index = i;
+            }
+            else if (id == 10)
+            {
+                has_lily = 1;
+                lily_col_index = i;
+            }
+            if (has_dandelion && has_lily)
+                break;
+        }
+        if (has_dandelion && nd < 160)
+            dandy[nd++] = y;
+        if (has_lily && nl < 160)
+            lily[nl++] = y;
+        if (has_dandelion)
+            dandy_col[nd > 159 ? 159 : nd - 1] = dandy_col_index;
+        if (has_lily)
+            lily_col[nl > 159 ? 159 : nl - 1] = lily_col_index;
+    }
+    for (a = 0; a < nd; a++)
+    {
+        for (b = 0; b < nl; b++)
+        {
+            const int span = abs(dandy[a] - lily[b]);
+            if (span <= 32 && span < best)
+            {
+                /* Report the lower end: that is where the farm starts, the
+                 * platform stack then climbs into the other gradient end. */
+                best = span;
+                best_y = dandy[a] < lily[b] ? dandy[a] : lily[b];
+                best_pair_a = a;
+                best_pair_b = b;
             }
         }
     }
     if (best > 32)
         return 0;
     *out_y = best_y;
+    /* Report the midpoint of the two gradient ends: that is the place to build. */
+    {
+        const int ax = near_x[dandy_col[best_pair_a < 0 ? 0 : best_pair_a]];
+        const int az = near_z[dandy_col[best_pair_a < 0 ? 0 : best_pair_a]];
+        const int bx = near_x[lily_col[best_pair_b < 0 ? 0 : best_pair_b]];
+        const int bz = near_z[lily_col[best_pair_b < 0 ? 0 : best_pair_b]];
+        *out_x = (ax + bx) / 2;
+        *out_z = (az + bz) / 2;
+    }
     return 1;
 }
 
@@ -307,7 +450,8 @@ static int in_window(int x, int z, int side_x, int side_z, const int *boxes, int
 }
 
 static void classify_window(const Generator *overworld, int wx, int wz, int side_x, int side_z,
-                            int cell, WindowStats *stats)
+                            int cell, int scale, int *fx, int *fz, int *flower_col_count,
+                            int max_cols, WindowStats *stats)
 {
     int gx, gz;
     const int mid_x = wx + side_x / 2;
@@ -316,6 +460,8 @@ static void classify_window(const Generator *overworld, int wx, int wz, int side
 
     memset(stats, 0, sizeof(*stats));
     stats->area_per_cell = cell * cell;
+    if (flower_col_count)
+        *flower_col_count = 0;
     stats->flower_x = wx + side_x / 2;
     stats->flower_z = wz + side_z / 2;
     stats->pale_x = stats->flower_x;
@@ -329,13 +475,21 @@ static void classify_window(const Generator *overworld, int wx, int wz, int side
         {
             const int bx = wx + gx * cell;
             const int bz = wz + gz * cell;
-            const int id = getBiomeAt(overworld, 4, bx, FLW_BIOME_Y, bz);
+            const int id = flw_biome(bx, FLW_BIOME_Y, bz);
+            (void) overworld;
+            (void) scale;
             switch (id)
             {
             case flower_forest:
             {
                 const int d = abs(bx - mid_x) + abs(bz - mid_z);
                 stats->flower_cells++;
+                if (fx && fz && flower_col_count && *flower_col_count < max_cols)
+                {
+                    fx[*flower_col_count] = bx;
+                    fz[*flower_col_count] = bz;
+                    (*flower_col_count)++;
+                }
                 if (d < flower_best)
                 {
                     flower_best = d;
@@ -419,6 +573,9 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
         return 0;
     if (long_side > 1024 || short_side > 1024)
         return 0;
+
+    initBiomeNoise(&g_bn, mc);
+    setBiomeSeed(&g_bn, seed, 0);
 
     memset(&field, 0, sizeof(field));
     if (!build_field(&field, seed, mc, min_x, min_z, max_x, max_z))
@@ -563,27 +720,32 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
             checked_n++;
         }
 
-        classify_window(&overworld, wx, wz, side_x, side_z, 16, &coarse);
-        if (coarse.flower_cells < 2 || coarse.swamp_cells < 1)
+        classify_window(&overworld, wx, wz, side_x, side_z, 16, 4, NULL, NULL, NULL, 0, &coarse);
+        if (coarse.flower_cells < 4 || coarse.swamp_cells < 1)
             continue;
         if (require_pale && coarse.pale_cells < 1)
             continue;
 
-        cell = side_x > side_z ? side_x : side_z;
-        cell = cell / 80;
-        if (cell < 4)
-            cell = 4;
-        classify_window(&overworld, wx, wz, side_x, side_z, cell, &fine);
+        /* Verification samples the real biome at 1:1 and 4-block steps, the
+         * way FlowerFinder does, so a smoothed 4:1 grid cannot fake a patch. */
+        cell = 4;
+        classify_window(&overworld, wx, wz, side_x, side_z, cell, 4, sample_x, sample_z, &sample_n, 512, &fine);
         flower_area = fine.flower_cells * fine.area_per_cell;
         pale_area = fine.pale_cells * fine.area_per_cell;
         swamp_area = fine.swamp_cells * fine.area_per_cell;
         if (getenv("FLW_DEBUG"))
-            fprintf(stderr, "[flw] cand (%d,%d) %dx%d coarse ff=%d sw=%d pg=%d | fine cell=%d ff=%d sw=%d pg=%d\n",
+            fprintf(stderr, "[flw] cand (%d,%d) %dx%d coarse ff=%d sw=%d pg=%d | fine cell=%d ff=%d sw=%d pg=%d y=%d\n",
                     wx, wz, side_x, side_z, coarse.flower_cells, coarse.swamp_cells,
                     coarse.pale_cells, cell, fine.flower_cells, fine.swamp_cells,
-                    fine.pale_cells);
-        if (flower_area <= FLW_FLOWER_AREA_MIN)
-            continue;
+                    fine.pale_cells, flower_y);
+        {
+            const int window_area = side_x * side_z;
+            int min_area = window_area / 20;
+            if (min_area < FLW_FLOWER_AREA_MIN)
+                min_area = FLW_FLOWER_AREA_MIN;
+            if (flower_area < min_area)
+                continue;
+        }
         if (swamp_area < 64)
             continue;
         if (require_pale && pale_area < 64)
@@ -602,24 +764,38 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
         if (require_basalt && rank != FLW_NETHER_BASALT)
             continue;
 
+        /* Pick a spot whose neighbourhood already sweeps the whole gradient,
+         * otherwise the "all flower" farm cannot be built there. */
         {
-            int gx, gz;
-            const int stride = cell;
-            for (gz = 0; gz * cell < side_z && sample_n < 512; gz++)
-                for (gx = 0; gx * cell < side_x && sample_n < 512; gx++)
-                {
-                    const int bx = wx + gx * stride;
-                    const int bz = wz + gz * stride;
-                    if (getBiomeAt(&overworld, 4, bx, FLW_BIOME_Y, bz) == flower_forest)
-                    {
-                        sample_x[sample_n] = bx;
-                        sample_z[sample_n] = bz;
-                        sample_n++;
-                    }
-                }
+            int centre_count = sample_n;
+            int step = centre_count > 24 ? centre_count / 24 : 1;
+            int picked = 0;
+            int k;
+            if (centre_count == 0)
+                continue;
+            for (k = 0; k < centre_count; k += step)
+            {
+                int candidate_y = 0;
+                int spot_x = 0, spot_z = 0;
+                if (!compact_extremes(&flowers, sample_x, sample_z, sample_n,
+                                      sample_x[k], sample_z[k], FLW_GRADIENT_RADIUS,
+                                      &candidate_y, &spot_x, &spot_z))
+                    continue;
+                if (flw_biome(spot_x, candidate_y, spot_z) != flower_forest)
+                    continue;
+                flower_y = candidate_y;
+                fine.flower_x = spot_x;
+                fine.flower_z = spot_z;
+                picked = 1;
+                break;
+            }
+            if (!picked)
+            {
+                if (getenv("FLW_DEBUG"))
+                    fprintf(stderr, "[flw]   reject compact gradient (cols=%d)\n", sample_n);
+                continue;
+            }
         }
-        if (sample_n > 0)
-            flower_extremes(&flowers, sample_x, sample_z, sample_n, &flower_y);
 
         accepted[rows * 4 + 0] = wx;
         accepted[rows * 4 + 1] = wz;
@@ -628,8 +804,8 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
 
         {
             int32_t *row = out + (size_t) rows * 16;
-            row[0] = wx + side_x / 2;
-            row[1] = wz + side_z / 2;
+            row[0] = fine.flower_x;
+            row[1] = fine.flower_z;
             row[2] = side_x;
             row[3] = side_z;
             row[4] = flower_area;
@@ -648,6 +824,25 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
         rows++;
         if ((size_t) rows * 16 >= (size_t) capacity)
             break;
+    }
+
+    /* Bigger flower patches are the safer places to build, so surface them first. */
+    if (rows > 1)
+    {
+        int a, b;
+        for (a = 0; a + 1 < rows; a++)
+            for (b = a + 1; b < rows; b++)
+            {
+                int32_t *ra = out + (size_t) a * 16;
+                int32_t *rb = out + (size_t) b * 16;
+                if (rb[4] > ra[4])
+                {
+                    int32_t tmp[16];
+                    memcpy(tmp, ra, sizeof(tmp));
+                    memcpy(ra, rb, sizeof(tmp));
+                    memcpy(rb, tmp, sizeof(tmp));
+                }
+            }
     }
 
     free(accepted);

@@ -312,7 +312,7 @@ private fun FlowerFarmCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = "中心 ${hit.centerX} / ${hit.centerZ}",
+                text = "花田 ${hit.flowerX} / ${hit.flowerZ} · Y ${if (hit.flowerY > 0) hit.flowerY else "—"}",
                 style = MaterialTheme.typography.titleSmall,
             )
             Text(
@@ -322,8 +322,13 @@ private fun FlowerFarmCard(
                 fontFamily = FontFamily.Monospace,
             )
             Text(
-                text = "花田 Y ${if (hit.flowerY > 0) hit.flowerY else "—"} · 下界 ${hit.nether}" +
-                    if (hit.bonus.isNotBlank()) " · ${hit.bonus}" else "",
+                text = "下界 ${hit.nether}" + if (hit.bonus.isNotBlank()) " · ${hit.bonus}" else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "从 Y ${if (hit.flowerY > 0) hit.flowerY else "—"} 往上 32 格搭分层平台，" +
+                    "就是完整的 11 种花色梯度",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -357,20 +362,7 @@ private fun FlowerFarmCard(
                         )
                     },
                 ) { Text("沼泽") }
-                TextButton(
-                    onClick = {
-                        onOpenMap(
-                            MapTarget(
-                                seed = seed,
-                                seedText = state.seedText,
-                                versionLabel = state.version.label,
-                                dimension = Dimension.OVERWORLD,
-                                centerX = hit.centerX.toDouble(),
-                                centerZ = hit.centerZ.toDouble(),
-                            ),
-                        )
-                    },
-                ) { Text("窗口中心") }
+
             }
         }
     }
