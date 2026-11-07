@@ -286,6 +286,9 @@ internal object NativeSeedgen {
         requirePale: Int,
         requireBothBonus: Int,
         requireBasalt: Int,
+        orientation: Int,
+        flowerMargin: Int,
+        fastMode: Int,
         maxRows: Int,
         out: IntArray,
     ): Int

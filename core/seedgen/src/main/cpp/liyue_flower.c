@@ -378,18 +378,19 @@ static int compact_extremes(const FlowerNoise *fn, const int *xs, const int *zs,
         for (b = 0; b < nl; b++)
         {
             const int span = abs(dandy[a] - lily[b]);
-            if (span <= 32 && span < best)
+            const int low = dandy[a] < lily[b] ? dandy[a] : lily[b];
+            /* Among every pair that fits in 32 blocks, take the lowest one:
+             * that keeps the farm near the ground instead of floating at y=300. */
+            if (span <= 32 && (best_pair_a < 0 || low < best_y))
             {
-                /* Report the lower end: that is where the farm starts, the
-                 * platform stack then climbs into the other gradient end. */
                 best = span;
-                best_y = dandy[a] < lily[b] ? dandy[a] : lily[b];
+                best_y = low;
                 best_pair_a = a;
                 best_pair_b = b;
             }
         }
     }
-    if (best > 32)
+    if (best_pair_a < 0 || best > 32)
         return 0;
     *out_y = best_y;
     /* Report the midpoint of the two gradient ends: that is the place to build. */
@@ -543,7 +544,8 @@ static void classify_window(const Generator *overworld, int wx, int wz, int side
 
 int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x, int max_z,
                         int long_side, int short_side, int square_only, int require_pale,
-                        int require_both_bonus, int require_basalt, int max_rows, int32_t *out,
+                        int require_both_bonus, int require_basalt, int orientation,
+                        int flower_margin, int fast_mode, int max_rows, int32_t *out,
                         int capacity)
 {
     const uint64_t seed = (uint64_t) seed64;
@@ -557,11 +559,9 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
     int checked_n = 0;
     Generator overworld, nether;
     FlowerNoise flowers;
-    const int sides[2][2] = {
-        {long_side, short_side},
-        {short_side, long_side},
-    };
-    const int orientations = (square_only || long_side == short_side) ? 1 : 2;
+    int sides[2][2];
+    int orientations = 0;
+    int frame_step;
 
     if (!out || capacity < 16 || max_rows <= 0)
         return 0;
@@ -573,6 +573,37 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
         return 0;
     if (long_side > 1024 || short_side > 1024)
         return 0;
+
+    /* orientation: 0 = either, 1 = long side along X, 2 = long side along Z. */
+    if (square_only || long_side == short_side)
+    {
+        sides[0][0] = long_side;
+        sides[0][1] = short_side;
+        orientations = 1;
+    }
+    else if (orientation == 1)
+    {
+        sides[0][0] = long_side;
+        sides[0][1] = short_side;
+        orientations = 1;
+    }
+    else if (orientation == 2)
+    {
+        sides[0][0] = short_side;
+        sides[0][1] = long_side;
+        orientations = 1;
+    }
+    else
+    {
+        sides[0][0] = long_side;
+        sides[0][1] = short_side;
+        sides[1][0] = short_side;
+        sides[1][1] = long_side;
+        orientations = 2;
+    }
+    if (flower_margin < 0)
+        flower_margin = 0;
+    frame_step = fast_mode ? 32 : 8;
 
     initBiomeNoise(&g_bn, mc);
     setBiomeSeed(&g_bn, seed, 0);
@@ -612,9 +643,9 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
         const int side_x = sides[ori][0];
         const int side_z = sides[ori][1];
         int x, z;
-        for (z = min_z; z + side_z <= max_z; z += 32)
+        for (z = min_z; z + side_z <= max_z; z += frame_step)
         {
-            for (x = min_x; x + side_x <= max_x; x += 32)
+            for (x = min_x; x + side_x <= max_x; x += frame_step)
             {
                 const int i0 = (x - field.min_x) / field.step;
                 const int j0 = (z - field.min_z) / field.step;
@@ -783,6 +814,10 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
                     continue;
                 if (flw_biome(spot_x, candidate_y, spot_z) != flower_forest)
                     continue;
+                if (flower_margin > 0 &&
+                    (spot_x < wx + flower_margin || spot_x > wx + side_x - flower_margin ||
+                     spot_z < wz + flower_margin || spot_z > wz + side_z - flower_margin))
+                    continue;
                 flower_y = candidate_y;
                 fine.flower_x = spot_x;
                 fine.flower_z = spot_z;
@@ -819,14 +854,16 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
             row[12] = fine.swamp_x;
             row[13] = fine.swamp_z;
             row[14] = rank;
-            row[15] = bonus;
+            row[15] = bonus | ((side_x >= side_z ? 1 : 2) << 8);
         }
         rows++;
         if ((size_t) rows * 16 >= (size_t) capacity)
             break;
     }
 
-    /* Bigger flower patches are the safer places to build, so surface them first. */
+    /* Ranking follows the tool this was ported from: results that carry the
+     * bonus flower clusters win, then basalt deltas, then whatever is closest
+     * to the origin, and finally the bigger flower patch. */
     if (rows > 1)
     {
         int a, b;
@@ -835,7 +872,22 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
             {
                 int32_t *ra = out + (size_t) a * 16;
                 int32_t *rb = out + (size_t) b * 16;
-                if (rb[4] > ra[4])
+                const int ba = (ra[15] & 0xFF) != 0;
+                const int bb = (rb[15] & 0xFF) != 0;
+                const int sa = ra[14] == FLW_NETHER_BASALT;
+                const int sb = rb[14] == FLW_NETHER_BASALT;
+                const int da = abs(ra[0]) + abs(ra[1]);
+                const int db = abs(rb[0]) + abs(rb[1]);
+                int better = 0;
+                if (bb != ba)
+                    better = bb > ba;
+                else if (sb != sa)
+                    better = sb > sa;
+                else if (db != da)
+                    better = db < da;
+                else
+                    better = rb[4] > ra[4];
+                if (better)
                 {
                     int32_t tmp[16];
                     memcpy(tmp, ra, sizeof(tmp));

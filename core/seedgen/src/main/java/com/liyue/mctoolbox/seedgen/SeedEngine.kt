@@ -475,6 +475,7 @@ class SeedEngine(
         val swampZ: Int,
         val nether: String,
         val bonus: String,
+        val orientation: String = "横向",
     )
 
     /**
@@ -494,6 +495,9 @@ class SeedEngine(
         requirePale: Boolean,
         requireBothBonus: Boolean,
         requireBasalt: Boolean,
+        orientation: Int = 0,
+        flowerMargin: Int = 0,
+        fastMode: Boolean = true,
         maxRows: Int = 16,
     ): List<FlowerFarmHit> {
         if (version.ordinal < McVersion.MC_1_18_2.ordinal) return emptyList()
@@ -511,6 +515,9 @@ class SeedEngine(
             if (requirePale) 1 else 0,
             if (requireBothBonus) 1 else 0,
             if (requireBasalt) 1 else 0,
+            orientation,
+            flowerMargin,
+            if (fastMode) 1 else 0,
             maxRows.coerceIn(1, 64),
             out,
         )
@@ -533,7 +540,8 @@ class SeedEngine(
                 swampX = out[base + 12],
                 swampZ = out[base + 13],
                 nether = netherLabel(out[base + 14]),
-                bonus = bonusLabel(out[base + 15]),
+                bonus = bonusLabel(out[base + 15] and 0xFF),
+                orientation = if (out[base + 15] shr 8 == 2) "竖向" else "横向",
             )
         }
     }
