@@ -1,6 +1,12 @@
 package com.liyue.mctoolbox.map.finder
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,6 +63,7 @@ import com.liyue.mctoolbox.map.groupLabel
 import com.liyue.mctoolbox.map.MapTarget
 import com.liyue.mctoolbox.map.StructureType
 import com.liyue.mctoolbox.seedgen.Dimension
+import com.liyue.mctoolbox.map.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,6 +111,13 @@ fun FinderScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item {
+                FinderBanner(
+                    title = preset?.title ?: "Chunkbase 全都能搜",
+                    subtitle = "结构、群系、矿脉、地牢 · 本地运算",
+                )
+            }
+
             item {
                 FinderSeedCard(
                     state = state,
@@ -581,4 +595,45 @@ private fun <T> PickerField(
     }
 }
 
-
+@Composable
+private fun FinderBanner(title: String, subtitle: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(112.dp)
+            .clip(RoundedCornerShape(20.dp)),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.finder_banner),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        0f to Color.Black.copy(alpha = 0.52f),
+                        0.75f to Color.Black.copy(alpha = 0.05f),
+                    ),
+                ),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 16.dp),
+        ) {
+            Text(
+                text = title,
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = subtitle,
+                color = Color.White.copy(alpha = 0.84f),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}

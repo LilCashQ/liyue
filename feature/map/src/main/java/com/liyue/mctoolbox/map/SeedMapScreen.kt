@@ -200,7 +200,7 @@ fun SeedMapScreen(
             }
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 3.dp,
+                tonalElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .zIndex(2f),
@@ -1696,7 +1696,7 @@ private fun MapActionBar(
     onOpenLegend: () -> Unit,
     onOpenUnderground: () -> Unit,
 ) {
-    Surface(tonalElevation = 3.dp) {
+    Surface(tonalElevation = 0.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2039,7 +2039,7 @@ private fun StructureDetailsSheet(
         if (variant != null) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                tonalElevation = 1.dp,
+                tonalElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
@@ -2080,7 +2080,7 @@ private fun StructureDetailsSheet(
                 details.pieces.take(24).forEach { piece ->
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        tonalElevation = 1.dp,
+                        tonalElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -2249,7 +2249,7 @@ private fun UndergroundSheet(
                 .fillMaxWidth()
                 .aspectRatio(1f),
             shape = RoundedCornerShape(12.dp),
-            tonalElevation = 1.dp,
+            tonalElevation = 0.dp,
         ) {
             Box(
                 modifier = Modifier

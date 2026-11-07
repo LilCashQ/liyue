@@ -17,8 +17,8 @@ android {
         applicationId = "com.liyue.mctoolbox"
         minSdk = 26
         targetSdk = 35
-        versionCode = 42
-        versionName = "0.37.0"
+        versionCode = 43
+        versionName = "0.38.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters += "arm64-v8a"

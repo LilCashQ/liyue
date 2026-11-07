@@ -1,12 +1,20 @@
 package com.liyue.mctoolbox.map
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -57,6 +65,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.liyue.mctoolbox.map.R
 
 private data class FlowerFarmState(
     val seedText: String = "0",
@@ -313,6 +322,29 @@ fun FlowerFarmScreen(
                 .padding(horizontal = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(104.dp)
+                        .clip(RoundedCornerShape(18.dp)),
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.flower_banner),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Text(
+                        text = "一个窗口里凑齐花林、沼泽与苍白花园",
+                        color = Color(0xFF10306E),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(14.dp),
+                    )
+                }
+            }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(

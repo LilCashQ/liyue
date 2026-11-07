@@ -216,8 +216,9 @@ private fun SectionTitle(title: String, trailing: String? = null) {
 @Composable
 private fun HeroRow(onOpenTool: (ToolEntry) -> Unit) {
     val seedMap = ToolCatalog.byId(ToolCatalog.SEED_MAP)
-    val bedrock = ToolCatalog.byId(ToolCatalog.BEDROCK_LIBRARY)
+    val finder = ToolCatalog.byId(ToolCatalog.STRUCTURE_FINDER)
     val flower = ToolCatalog.byId(ToolCatalog.FLOWER_FARM)
+    val bedrock = ToolCatalog.byId(ToolCatalog.BEDROCK_LIBRARY)
     val pageWidth = (LocalConfiguration.current.screenWidthDp * 0.78f).dp
 
     LazyRow(
@@ -235,12 +236,23 @@ private fun HeroRow(onOpenTool: (ToolEntry) -> Unit) {
                 )
             }
         }
+        if (finder != null) {
+            item {
+                HeroCard(
+                    title = "查找器",
+                    subtitle = "36 个 Chunkbase 玩法一次装齐",
+                    imageRes = R.drawable.hero_finder,
+                    onClick = { onOpenTool(finder) },
+                    modifier = Modifier.width(pageWidth),
+                )
+            }
+        }
         if (flower != null) {
             item {
                 HeroCard(
                     title = "全花种农场",
                     subtitle = "花林、沼泽、苍白花园同窗",
-                    imageRes = R.drawable.hero_finder,
+                    imageRes = R.drawable.hero_flower,
                     onClick = { onOpenTool(flower) },
                     modifier = Modifier.width(pageWidth),
                 )
