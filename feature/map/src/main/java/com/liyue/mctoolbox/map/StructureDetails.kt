@@ -19,6 +19,8 @@ data class StructureDetails(
     val pieces: List<StructurePiece>,
     val containers: List<StructureContainer>,
     val limits: List<String>,
+    /** Filled in only when a single container was requested. */
+    val items: List<StructureItem> = emptyList(),
 ) {
     companion object {
         fun parse(json: String): StructureDetails? = runCatching {
@@ -30,6 +32,7 @@ data class StructureDetails(
                 pieces = root.optJSONArray("pieces").mapObjects(::parsePiece),
                 containers = root.optJSONArray("containers").mapObjects(::parseContainer),
                 limits = root.optJSONArray("limits").mapStrings(),
+                items = root.optJSONArray("items").mapObjects(::parseItem),
             )
         }.getOrNull()
 
@@ -69,6 +72,11 @@ data class StructureDetails(
             maxX = json.optJSONObject("max")?.optInt("x", 0) ?: 0,
             maxY = json.optJSONObject("max")?.optInt("y", 0) ?: 0,
             maxZ = json.optJSONObject("max")?.optInt("z", 0) ?: 0,
+        )
+
+        private fun parseItem(json: JSONObject): StructureItem = StructureItem(
+            id = json.optString("id", ""),
+            count = json.optInt("count", 0),
         )
 
         private fun parseContainer(json: JSONObject): StructureContainer = StructureContainer(
@@ -132,6 +140,9 @@ data class StructurePiece(
 )
 
 /** One loot chest inside a piece. */
+/** One rolled item stack inside a chest; [id] looks like `minecraft:golden_apple`. */
+data class StructureItem(val id: String, val count: Int)
+
 data class StructureContainer(
     val id: Int,
     val piece: Int,

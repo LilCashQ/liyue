@@ -65,6 +65,22 @@ internal object NativeSeedgen {
         outRgb: ByteArray,
     ): Int
 
+    external fun renderTileShaded(
+        seed: Long,
+        version: Int,
+        dim: Int,
+        scale: Int,
+        x: Int,
+        z: Int,
+        width: Int,
+        height: Int,
+        elevation: Int,
+        contours: Int,
+        heightCell: Int,
+        highlightMask: ByteArray?,
+        outRgb: ByteArray,
+    ): Int
+
     external fun seedMapCapability(version: Int, capability: Int, value: Int): Int
 
     external fun strongholds(
@@ -185,4 +201,45 @@ internal object NativeSeedgen {
 
     /** Bedrock stronghold ring: writes up to three x/z pairs, returns the count. */
     external fun bedrockStrongholds(seed: Long, out: IntArray): Int
+
+    /**
+     * Enumerates monster rooms (dungeons) in a block rectangle.
+     * Writes quadruplets (x, y, z, type) and returns the number of dungeons;
+     * type is 0 zombie, 1 spider, 2 skeleton.
+     */
+    external fun dungeons(
+        seed: Long,
+        version: Int,
+        minX: Int,
+        minZ: Int,
+        maxX: Int,
+        maxZ: Int,
+        out: IntArray,
+    ): Int
+
+    /**
+     * Approximate Overworld surface height on the 1:4 grid, in blocks.
+     * [x4] and [z4] are 1:4 scale coordinates; writes width * height floats.
+     */
+    external fun surfaceHeights(
+        seed: Long,
+        version: Int,
+        x4: Int,
+        z4: Int,
+        width: Int,
+        height: Int,
+        outHeights: FloatArray,
+    ): Int
+
+    /** Chests of one structure that contain [itemName]; triples of x, z, count. */
+    external fun lootSearch(
+        seed: Long,
+        version: Int,
+        dim: Int,
+        x: Int,
+        z: Int,
+        featureBit: Int,
+        itemName: String,
+        out: IntArray,
+    ): Int
 }

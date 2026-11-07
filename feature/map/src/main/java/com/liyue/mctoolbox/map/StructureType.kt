@@ -66,7 +66,7 @@ enum class StructureType(
         )
 
         val defaultEnabled: Set<StructureType> = setOf(
-            SLIME_CHUNK, VILLAGE, ANCIENT_CITY, STRONGHOLD, MANSION,
+            VILLAGE, ANCIENT_CITY, STRONGHOLD, MANSION,
             MONUMENT, OUTPOST, MINESHAFT, RUINED_PORTAL,
         )
 

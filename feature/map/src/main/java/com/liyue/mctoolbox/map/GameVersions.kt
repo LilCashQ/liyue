@@ -41,18 +41,9 @@ object GameVersions {
          * Twister; biomes come from the matching Java generator because both
          * editions share the Overworld biome noise from 1.18 on.
          */
-        fun bedrock(label: String, engine: McVersion) {
+        BedrockVersionCatalog.versions.forEach { (label, engine) ->
             add(GameVersion("基岩 $label", engine, Edition.BEDROCK))
         }
-        bedrock("1.21.120", McVersion.MC_1_21_11)
-        bedrock("1.21.90", McVersion.MC_1_21_6)
-        bedrock("1.21.60", McVersion.MC_1_21_5)
-        bedrock("1.21.50", McVersion.MC_1_21_3)
-        bedrock("1.21.0", McVersion.MC_1_21_1)
-        bedrock("1.20.60", McVersion.MC_1_20_6)
-        bedrock("1.20.1", McVersion.MC_1_20_6)
-        bedrock("1.19.0", McVersion.MC_1_19_4)
-        bedrock("1.18.0", McVersion.MC_1_18_2)
 
         family("26.3", engine = McVersion.MC_26_3)
         family("26.2", engine = McVersion.MC_26_2)
@@ -82,4 +73,17 @@ object GameVersions {
     }
 
     val default: GameVersion = all.first { it.edition == Edition.JAVA }
+
+    /** All entries of one edition, newest first. */
+    fun of(edition: Edition): List<GameVersion> = all.filter { it.edition == edition }
+
+    /** Edition sections for the version pickers, in menu order. */
+    val grouped: List<Pair<String, List<GameVersion>>>
+        get() = Edition.entries.map { edition -> edition.groupLabel to of(edition) }
+
+    fun find(label: String): GameVersion? = all.firstOrNull { it.label == label }
 }
+
+/** Menu header text for an edition. */
+val Edition.groupLabel: String
+    get() = if (isBedrock) "基岩版" else "Java 版"

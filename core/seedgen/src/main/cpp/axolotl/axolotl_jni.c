@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "cubiomes_bridge.h"
+#include "loot/cjson/cJSON.h"
 #include "liyue_mc.h"
 
 /*
@@ -88,6 +89,50 @@ Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_renderTile(JNIEnv *env, jobject t
         x, z, scale, width, height,
         elevation, terrain, contours,
         mask, (uint8_t *)rgb, (size_t)length);
+
+    (*env)->ReleaseByteArrayElements(env, outRgb, rgb, 0);
+    if (mask != NULL)
+        (*env)->ReleaseByteArrayElements(env, highlightMask, (jbyte *)mask, JNI_ABORT);
+    return status;
+}
+
+/*
+ * Same as renderTile, but shades the biome colours from a world-anchored
+ * height grid so neighbouring tiles line up without seams. `heightCell` is the
+ * height sample spacing in blocks; 0 disables shading.
+ */
+JNIEXPORT jint JNICALL
+Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_renderTileShaded(JNIEnv *env, jobject thiz,
+    jlong seed, jint version, jint dimension,
+    jint scale, jint x, jint z, jint width, jint height,
+    jint elevation, jint contours, jint heightCell,
+    jbyteArray highlightMask, jbyteArray outRgb)
+{
+    (void)thiz;
+    int mc = liyue_mc_version(version);
+    if (mc < 0 || outRgb == NULL)
+        return -1;
+    jsize length = (*env)->GetArrayLength(env, outRgb);
+    if (length < width * height * 3)
+        return -1;
+
+    uint8_t *mask = NULL;
+    if (highlightMask != NULL && (*env)->GetArrayLength(env, highlightMask) >= 256) {
+        mask = (uint8_t *)(*env)->GetByteArrayElements(env, highlightMask, NULL);
+    }
+
+    jbyte *rgb = (*env)->GetByteArrayElements(env, outRgb, NULL);
+    if (rgb == NULL) {
+        if (mask != NULL)
+            (*env)->ReleaseByteArrayElements(env, highlightMask, (jbyte *)mask, JNI_ABORT);
+        return -1;
+    }
+
+    int status = axolotl_seed_map_render_shaded(
+        (uint64_t)seed, mc, 0, dimension,
+        x, z, scale, width, height,
+        elevation, contours,
+        mask, (uint8_t *)rgb, (size_t)length, heightCell);
 
     (*env)->ReleaseByteArrayElements(env, outRgb, rgb, 0);
     if (mask != NULL)
@@ -216,5 +261,96 @@ Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_undergroundTile(JNIEnv *env, jobj
         (uint8_t *)rgba, (uint64_t)needed);
 
     (*env)->ReleaseByteArrayElements(env, outRgba, rgba, 0);
+    return status;
+}
+
+/*
+ * Roll the loot of every chest that belongs to one structure and report the
+ * containers that contain `itemName` (for the Chunkbase "Golden Apple" style
+ * search). Each hit writes three ints: block x, block z, stack count.
+ * Returns the number of hits, or -1 on a bad argument.
+ */
+JNIEXPORT jint JNICALL
+Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_lootSearch(JNIEnv *env, jobject thiz,
+    jlong seed, jint version, jint dimension, jint x, jint z,
+    jint featureBit, jstring itemName, jintArray out)
+{
+    (void)thiz;
+    int mc = liyue_mc_version(version);
+    if (mc < 0 || out == NULL || itemName == NULL)
+        return -1;
+    const char *wanted = (*env)->GetStringUTFChars(env, itemName, NULL);
+    if (wanted == NULL)
+        return -1;
+    jsize capacity = (*env)->GetArrayLength(env, out);
+    jint *buffer = capacity > 0 ? (*env)->GetIntArrayElements(env, out, NULL) : NULL;
+    int written = 0;
+
+    char *json = axolotl_seed_map_structure_details((uint64_t)seed, mc, 0, dimension, x, z, (uint32_t)featureBit, -1);
+    cJSON *root = json ? cJSON_Parse(json) : NULL;
+    if (root)
+    {
+        const cJSON *containers = cJSON_GetObjectItemCaseSensitive(root, "containers");
+        const cJSON *container = NULL;
+        cJSON_ArrayForEach(container, containers)
+        {
+            const cJSON *idItem = cJSON_GetObjectItemCaseSensitive(container, "id");
+            if (!cJSON_IsNumber(idItem)) continue;
+            int containerId = idItem->valueint;
+            char *lootJson = axolotl_seed_map_structure_details(
+                (uint64_t)seed, mc, 0, dimension, x, z, (uint32_t)featureBit, containerId);
+            cJSON *loot = lootJson ? cJSON_Parse(lootJson) : NULL;
+            if (loot)
+            {
+                const cJSON *items = cJSON_GetObjectItemCaseSensitive(loot, "items");
+                const cJSON *item = NULL;
+                int count = 0;
+                cJSON_ArrayForEach(item, items)
+                {
+                    const cJSON *nameItem = cJSON_GetObjectItemCaseSensitive(item, "id");
+                    if (!cJSON_IsString(nameItem)) continue;
+                    if (strcmp(nameItem->valuestring, wanted) != 0) continue;
+                    const cJSON *countItem = cJSON_GetObjectItemCaseSensitive(item, "count");
+                    if (cJSON_IsNumber(countItem)) count += countItem->valueint;
+                }
+                if (count > 0 && buffer && written * 3 + 3 <= capacity)
+                {
+                    const cJSON *cx = cJSON_GetObjectItemCaseSensitive(container, "x");
+                    const cJSON *cz = cJSON_GetObjectItemCaseSensitive(container, "z");
+                    buffer[written * 3 + 0] = cJSON_IsNumber(cx) ? cx->valueint : x;
+                    buffer[written * 3 + 1] = cJSON_IsNumber(cz) ? cz->valueint : z;
+                    buffer[written * 3 + 2] = count;
+                    written++;
+                }
+                cJSON_Delete(loot);
+            }
+            if (lootJson) axolotl_seed_map_free_result(lootJson);
+        }
+        cJSON_Delete(root);
+    }
+    if (json) axolotl_seed_map_free_result(json);
+    if (buffer) (*env)->ReleaseIntArrayElements(env, out, buffer, 0);
+    (*env)->ReleaseStringUTFChars(env, itemName, wanted);
+    return written;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_liyue_mctoolbox_seedgen_NativeSeedgen_surfaceHeights(JNIEnv *env, jobject thiz,
+    jlong seed, jint version, jint x4, jint z4, jint width, jint height,
+    jfloatArray outHeights)
+{
+    (void)thiz;
+    int mc = liyue_mc_version(version);
+    if (mc < 0 || outHeights == NULL)
+        return -1;
+    jsize length = (*env)->GetArrayLength(env, outHeights);
+    if (length < width * height)
+        return -1;
+    jfloat *out = (*env)->GetFloatArrayElements(env, outHeights, NULL);
+    if (out == NULL)
+        return -1;
+    int status = axolotl_seed_map_surface_heights(
+        (uint64_t)seed, mc, 0, x4, z4, width, height, (float *)out);
+    (*env)->ReleaseFloatArrayElements(env, outHeights, out, 0);
     return status;
 }

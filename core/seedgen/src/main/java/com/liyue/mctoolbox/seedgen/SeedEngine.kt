@@ -234,6 +234,43 @@ class SeedEngine(
         return (0 until count).map { out[it * 2] to out[it * 2 + 1] }
     }
 
+    enum class DungeonKind(val label: String) {
+        ZOMBIE("僵尸地牢"),
+        SPIDER("蜘蛛地牢"),
+        SKELETON("骷髅地牢"),
+    }
+
+    data class DungeonHit(val x: Int, val y: Int, val z: Int, val kind: DungeonKind)
+
+    /**
+     * Finds monster rooms (dungeons) in the given block rectangle. Requires
+     * 1.18 or newer; older versions return an empty list.
+     */
+    fun dungeonsBlocking(
+        seed: Long,
+        version: McVersion,
+        minX: Int,
+        minZ: Int,
+        maxX: Int,
+        maxZ: Int,
+        maxCount: Int = 512,
+    ): List<DungeonHit> {
+        if (version.ordinal < McVersion.MC_1_18_2.ordinal) return emptyList()
+        val out = IntArray(maxCount.coerceAtLeast(1) * 4)
+        val count = NativeSeedgen.dungeons(seed, version.id, minX, minZ, maxX, maxZ, out)
+        if (count <= 0) return emptyList()
+        val kinds = DungeonKind.entries
+        return (0 until minOf(count, out.size / 4)).map {
+            val kind = out[it * 4 + 3]
+            DungeonHit(
+                out[it * 4],
+                out[it * 4 + 1],
+                out[it * 4 + 2],
+                kinds.getOrElse(kind) { DungeonKind.ZOMBIE },
+            )
+        }
+    }
+
     fun renderTileBlocking(
         seed: Long,
         version: McVersion,
@@ -249,11 +286,19 @@ class SeedEngine(
         highlightMask: ByteArray? = null,
     ): ByteArray {
         val rgb = ByteArray(width * height * 3)
-        val status = NativeSeedgen.renderTile(
-            seed, version.id, dimension.id, scale, x, z, width, height,
-            elevation, if (terrain) 1 else 0, if (contours) 1 else 0,
-            highlightMask, rgb,
-        )
+        val status = if (terrain && dimension == Dimension.OVERWORLD) {
+            NativeSeedgen.renderTileShaded(
+                seed, version.id, dimension.id, scale, x, z, width, height,
+                elevation, if (contours) 1 else 0, scale * 2,
+                highlightMask, rgb,
+            )
+        } else {
+            NativeSeedgen.renderTile(
+                seed, version.id, dimension.id, scale, x, z, width, height,
+                elevation, 0, if (contours) 1 else 0,
+                highlightMask, rgb,
+            )
+        }
         check(status == 0) { "renderTile failed with $status" }
         return rgb
     }
@@ -378,6 +423,60 @@ class SeedEngine(
             outRgba = out,
         )
         return if (status == 0) out else null
+    }
+
+    /** One chest that holds the searched item: block position plus stack size. */
+    data class LootChest(val x: Int, val z: Int, val count: Int)
+
+    /**
+     * Rolls every chest of the structure at (x, z) and keeps the ones that hold
+     * [itemName]. This is the same loot engine the structure detail sheet uses,
+     * so the answer matches what the game would generate.
+     */
+    fun lootSearchBlocking(
+        seed: Long,
+        version: McVersion,
+        dimension: Dimension,
+        x: Int,
+        z: Int,
+        featureBit: Int,
+        itemName: String,
+        maxChests: Int = 32,
+    ): List<LootChest> {
+        val out = IntArray(maxChests * 3)
+        val count = NativeSeedgen.lootSearch(
+            seed = seed,
+            version = version.id,
+            dim = dimension.id,
+            x = x,
+            z = z,
+            featureBit = featureBit,
+            itemName = itemName,
+            out = out,
+        )
+        if (count <= 0) return emptyList()
+        return (0 until count).map { i ->
+            LootChest(out[i * 3], out[i * 3 + 1], out[i * 3 + 2])
+        }
+    }
+
+    /**
+     * Approximate terrain height at a block position, or null when the version
+     * has no height model. The native side works on the 1:4 grid, so the value
+     * is snapped to four blocks.
+     */
+    fun surfaceHeightBlocking(
+        seed: Long,
+        version: McVersion,
+        blockX: Int,
+        blockZ: Int,
+    ): Int? {
+        val out = FloatArray(1)
+        val x4 = Math.floorDiv(blockX, 4)
+        val z4 = Math.floorDiv(blockZ, 4)
+        val status = NativeSeedgen.surfaceHeights(seed, version.id, x4, z4, 1, 1, out)
+        if (status != 0) return null
+        return out[0].toInt()
     }
 
     companion object {

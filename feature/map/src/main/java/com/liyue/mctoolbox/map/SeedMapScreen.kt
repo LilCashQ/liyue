@@ -8,6 +8,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
@@ -57,6 +59,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -64,6 +67,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -109,6 +113,7 @@ import kotlinx.coroutines.launch
 fun SeedMapScreen(
     onBack: (() -> Unit)? = null,
     onOpenDebug: () -> Unit = {},
+    onOpenFinder: ((seedText: String, versionLabel: String) -> Unit)? = null,
     initialTarget: MapTarget? = null,
     onTargetConsumed: () -> Unit = {},
     viewModel: SeedMapViewModel = viewModel(),
@@ -158,6 +163,13 @@ fun SeedMapScreen(
                     IconButton(onClick = { showSeedSheet = true }) {
                         Icon(Icons.Filled.Search, contentDescription = "种子与版本")
                     }
+                    if (onOpenFinder != null) {
+                        IconButton(
+                            onClick = { onOpenFinder(state.seedText, state.gameVersion.label) },
+                        ) {
+                            Icon(Icons.Filled.List, contentDescription = "查找器")
+                        }
+                    }
                     IconButton(onClick = { showSettings = true }) {
                         Icon(Icons.Filled.Settings, contentDescription = "地图设置")
                     }
@@ -190,6 +202,12 @@ fun SeedMapScreen(
                 onViewportChanged = viewModel::onViewportChanged,
                 onCameraChanged = viewModel::onCameraChanged,
                 onTap = { x, z ->
+                    // Measuring takes both taps, so it goes first.
+                    if (state.measureMode) {
+                        viewModel.measureAt(x, z)
+                        return@SeedMapCanvas
+                    }
+                    if (state.clickMark) viewModel.dropPin(x, z)
                     // A tap that lands on a structure marker opens its layout
                     // instead of dropping a biome probe on top of it. The pick
                     // radius follows the zoom so it stays ~28 screen pixels.
@@ -260,7 +278,15 @@ fun SeedMapScreen(
                     showSettings = false
                 },
                 onTerrain = viewModel::setTerrainEnabled,
+                onContours = viewModel::setContoursEnabled,
                 onGrid = viewModel::setGridEnabled,
+                onSlime = viewModel::toggleSlimeChunks,
+                onMeasure = viewModel::toggleMeasureMode,
+                onChunkReadout = viewModel::setChunkReadout,
+                onShowSpawn = viewModel::setShowSpawn,
+                onClickMark = viewModel::setClickMark,
+                onBiomeY = viewModel::setBiomeY,
+                onReset = viewModel::resetSettings,
                 onHighlight = { viewModel.requestLegend(); showLegend = true },
                 onOpenDebug = onOpenDebug,
             )
@@ -297,6 +323,7 @@ fun SeedMapScreen(
                     viewModel.loadUnderground()
                 },
                 onSpanChange = viewModel::setUndergroundSpan,
+                onOverlayChange = viewModel::setOverlayMode,
                 onRefresh = { viewModel.loadUnderground() },
             )
         }
@@ -404,26 +431,40 @@ private fun SeedSheet(
             ExposedDropdownMenu(
                 expanded = versionExpanded,
                 onDismissRequest = { versionExpanded = false },
+                modifier = Modifier.heightIn(max = 460.dp),
             ) {
-                GameVersions.all.forEach { version ->
+                GameVersions.grouped.forEach { (groupLabel, groupVersions) ->
                     DropdownMenuItem(
                         text = {
-                            Column {
-                                Text(version.label)
-                                if (version.isAlias) {
-                                    Text(
-                                        text = "群系算法同 ${version.engineLabel}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
+                            Text(
+                                text = groupLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         },
-                        onClick = {
-                            onVersionChange(version)
-                            versionExpanded = false
-                        },
+                        onClick = {},
+                        enabled = false,
                     )
+                    groupVersions.forEach { version ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(version.label)
+                                    if (version.isAlias) {
+                                        Text(
+                                            text = "群系算法同 ${version.engineLabel}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                onVersionChange(version)
+                                versionExpanded = false
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -597,26 +638,72 @@ private fun SeedMapCanvas(
                     }
                 },
         ) {
-            val map = state.map
-            if (map != null) {
-                val bpp = state.camera.blocksPerPixel
-                val scale = map.blocksPerSample / bpp
-                val left = ((map.originBlockX - state.camera.centerX) / bpp + size.width / 2.0)
+            val bpp = state.camera.blocksPerPixel
+            for (tile in state.staleTiles) {
+                val scale = tile.key.cellBlocks / bpp
+                val left = ((tile.originBlockX - state.camera.centerX) / bpp + size.width / 2.0)
                     .roundToInt()
-                val top = ((map.originBlockZ - state.camera.centerZ) / bpp + size.height / 2.0)
+                val top = ((tile.originBlockZ - state.camera.centerZ) / bpp + size.height / 2.0)
                     .roundToInt()
                 drawImage(
-                    image = map.image,
+                    image = tile.image,
                     srcOffset = IntOffset.Zero,
-                    srcSize = IntSize(map.width, map.height),
+                    srcSize = IntSize(tile.sizePx, tile.sizePx),
                     dstOffset = IntOffset(left, top),
                     dstSize = IntSize(
-                        (map.width * scale).roundToInt().coerceAtLeast(1),
-                        (map.height * scale).roundToInt().coerceAtLeast(1),
+                        (tile.sizePx * scale).roundToInt().coerceAtLeast(1),
+                        (tile.sizePx * scale).roundToInt().coerceAtLeast(1),
                     ),
-                    filterQuality = FilterQuality.Low,
+                    filterQuality = FilterQuality.None,
                 )
             }
+            for (tile in state.tiles) {
+                val scale = tile.key.cellBlocks / bpp
+                val left = ((tile.originBlockX - state.camera.centerX) / bpp + size.width / 2.0)
+                    .roundToInt()
+                val top = ((tile.originBlockZ - state.camera.centerZ) / bpp + size.height / 2.0)
+                    .roundToInt()
+                drawImage(
+                    image = tile.image,
+                    srcOffset = IntOffset.Zero,
+                    srcSize = IntSize(tile.sizePx, tile.sizePx),
+                    dstOffset = IntOffset(left, top),
+                    dstSize = IntSize(
+                        (tile.sizePx * scale).roundToInt().coerceAtLeast(1),
+                        (tile.sizePx * scale).roundToInt().coerceAtLeast(1),
+                    ),
+                    filterQuality = FilterQuality.None,
+                )
+            }
+            state.overlayImage?.let { overlay ->
+                if (state.overlayBlocks > 0) {
+                    val bpp = state.camera.blocksPerPixel
+                    val blockPerPixel = state.overlayBlocks.toDouble() / overlay.width
+                    val left = (
+                        (state.overlayOriginX - state.camera.centerX) / bpp +
+                            size.width / 2.0
+                        ).roundToInt()
+                    val top = (
+                        (state.overlayOriginZ - state.camera.centerZ) / bpp +
+                            size.height / 2.0
+                        ).roundToInt()
+                    val edge = (overlay.width * blockPerPixel / bpp).roundToInt()
+                        .coerceAtLeast(1)
+                    drawImage(
+                        image = overlay,
+                        srcOffset = IntOffset.Zero,
+                        srcSize = IntSize(overlay.width, overlay.height),
+                        dstOffset = IntOffset(left, top),
+                        dstSize = IntSize(edge, edge),
+                        filterQuality = FilterQuality.None,
+                    )
+                }
+            }
+            if (StructureType.SLIME_CHUNK in state.enabledStructures) {
+                drawSlimeChunks(state, size)
+            }
+            drawMeasureLine(state, size, textMeasurer)
+            drawPin(state, size)
             drawStructureMarkers(state, size)
             drawRulers(state.camera, textMeasurer, state.gridEnabled)
             drawCrosshair(size)
@@ -631,8 +718,16 @@ private fun SeedMapCanvas(
             color = Color.Black.copy(alpha = 0.55f),
             contentColor = Color.White,
         ) {
+            val centerBlockX = state.camera.centerX.roundToInt()
+            val centerBlockZ = state.camera.centerZ.roundToInt()
             Text(
-                text = "X ${state.camera.centerX.roundToInt()}   Z ${state.camera.centerZ.roundToInt()}",
+                text = if (state.chunkReadout) {
+                    "X $centerBlockX   Z $centerBlockZ\n区块 " +
+                        "${Math.floorDiv(centerBlockX, 16)} " +
+                        "${Math.floorDiv(centerBlockZ, 16)}"
+                } else {
+                    "X $centerBlockX   Z $centerBlockZ"
+                },
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace,
@@ -721,7 +816,16 @@ private fun SeedMapCanvas(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                text = "${point.biomeName} (${point.biomeId})",
+                                text = buildString {
+                                    append(point.biomeName)
+                                    append(" (")
+                                    append(point.biomeId)
+                                    append(')')
+                                    point.surfaceY?.let { y ->
+                                        append(" · 地表 Y ")
+                                        append(y)
+                                    }
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
@@ -920,9 +1024,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRulers(
         val px = ((x - camera.centerX) / bpp + halfW).toFloat()
         if (px > size.width) break
         if (px >= 0f) {
-            if (showGrid) {
-                drawLine(line, Offset(px, 0f), Offset(px, size.height), strokeWidth = 1f)
-            }
             val label = textMeasurer.measure(AnnotatedString(x.toLong().toString()), style)
             drawText(label, topLeft = Offset(px + 3f, 2f))
         }
@@ -934,13 +1035,31 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRulers(
         val py = ((z - camera.centerZ) / bpp + halfH).toFloat()
         if (py > size.height) break
         if (py >= 0f) {
-            if (showGrid) {
-                drawLine(line, Offset(0f, py), Offset(size.width, py), strokeWidth = 1f)
-            }
             val label = textMeasurer.measure(AnnotatedString(z.toLong().toString()), style)
             drawText(label, topLeft = Offset(2f, py + 2f))
         }
         z += step
+    }
+
+    // Chunk borders, like Chunkbase's "chunk grid" switch: 16 blocks apart and
+    // only once they are far enough apart to read as a grid.
+    val chunkPx = 16f / bpp
+    if (showGrid && chunkPx >= 2.5f) {
+        val grid = Color.White.copy(alpha = 0.30f)
+        var block = kotlin.math.floor((camera.centerX - halfW * bpp) / 16.0) * 16.0
+        while (true) {
+            val px = ((block - camera.centerX) / bpp + halfW).toFloat()
+            if (px > size.width) break
+            if (px >= 0f) drawLine(grid, Offset(px, 0f), Offset(px, size.height), strokeWidth = 1f)
+            block += 16.0
+        }
+        block = kotlin.math.floor((camera.centerZ - halfH * bpp) / 16.0) * 16.0
+        while (true) {
+            val py = ((block - camera.centerZ) / bpp + halfH).toFloat()
+            if (py > size.height) break
+            if (py >= 0f) drawLine(grid, Offset(0f, py), Offset(size.width, py), strokeWidth = 1f)
+            block += 16.0
+        }
     }
 }
 
@@ -984,6 +1103,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
         }
     }
 
+    if (!state.showSpawn) return
     state.spawnPoint?.let { spawn ->
         val px = ((spawn.x - state.camera.centerX) / bpp + size.width / 2f).toFloat()
         val py = ((spawn.z - state.camera.centerZ) / bpp + size.height / 2f).toFloat()
@@ -1011,6 +1131,137 @@ internal fun oreColor(kind: com.liyue.mctoolbox.seedgen.OreKind): Color = when (
     com.liyue.mctoolbox.seedgen.OreKind.EMERALD -> Color(0xFF2E7D32)
     com.liyue.mctoolbox.seedgen.OreKind.QUARTZ -> Color(0xFFF5F5F5)
     com.liyue.mctoolbox.seedgen.OreKind.NETHER_GOLD -> Color(0xFFFFB300)
+}
+
+/**
+ * Slime chunks as Chunkbase draws them: one translucent 16x16 square per slimy
+ * chunk, computed straight from the seed so it never waits on the structure
+ * pass. Below a couple of pixels per chunk the layer is skipped instead of
+ * painting the screen into a solid wash.
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSlimeChunks(
+    state: MapUiState,
+    size: androidx.compose.ui.geometry.Size,
+) {
+    val bpp = state.camera.blocksPerPixel
+    val chunkPx = 16f / bpp
+    if (chunkPx < 1.2f) return
+    val halfW = size.width / 2f * bpp
+    val halfH = size.height / 2f * bpp
+    val cx0 = kotlin.math.floor((state.camera.centerX - halfW) / 16.0).toInt()
+    val cx1 = kotlin.math.floor((state.camera.centerX + halfW) / 16.0).toInt()
+    val cz0 = kotlin.math.floor((state.camera.centerZ - halfH) / 16.0).toInt()
+    val cz1 = kotlin.math.floor((state.camera.centerZ + halfH) / 16.0).toInt()
+    val cells = (cx1 - cx0 + 1).toLong() * (cz1 - cz0 + 1)
+    if (cells > 400000) return
+    val fill = StructureType.SLIME_CHUNK.color.copy(alpha = 0.42f)
+    val edge = StructureType.SLIME_CHUNK.color.copy(alpha = 0.75f)
+    for (cz in cz0..cz1) {
+        for (cx in cx0..cx1) {
+            if (!slimeChunkAt(state.seed, cx, cz)) continue
+            val left = ((cx * 16 - state.camera.centerX) / bpp + size.width / 2f).toFloat()
+            val top = ((cz * 16 - state.camera.centerZ) / bpp + size.height / 2f).toFloat()
+            val side = chunkPx
+            drawRect(fill, topLeft = androidx.compose.ui.geometry.Offset(left, top),
+                size = androidx.compose.ui.geometry.Size(side, side))
+            if (chunkPx >= 5f) {
+                drawRect(edge, topLeft = androidx.compose.ui.geometry.Offset(left, top),
+                    size = androidx.compose.ui.geometry.Size(side, side),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1f))
+            }
+        }
+    }
+}
+
+/** Dashed ruler between the two measurement taps, with the distance label. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMeasureLine(
+    state: MapUiState,
+    size: androidx.compose.ui.geometry.Size,
+    textMeasurer: TextMeasurer,
+) {
+    val sx = state.measureStartX ?: return
+    val sz = state.measureStartZ ?: return
+    val ex = state.measureEndX ?: return
+    val ez = state.measureEndZ ?: return
+    val bpp = state.camera.blocksPerPixel
+    val start = androidx.compose.ui.geometry.Offset(
+        ((sx - state.camera.centerX) / bpp + size.width / 2f).toFloat(),
+        ((sz - state.camera.centerZ) / bpp + size.height / 2f).toFloat(),
+    )
+    val end = androidx.compose.ui.geometry.Offset(
+        ((ex - state.camera.centerX) / bpp + size.width / 2f).toFloat(),
+        ((ez - state.camera.centerZ) / bpp + size.height / 2f).toFloat(),
+    )
+    val accent = Color(0xFFFFC857)
+    drawLine(
+        color = accent,
+        start = start,
+        end = end,
+        strokeWidth = 2.dp.toPx(),
+        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+            floatArrayOf(10.dp.toPx(), 6.dp.toPx()),
+        ),
+    )
+    drawCircle(accent, 4.dp.toPx(), start)
+    drawCircle(accent, 4.dp.toPx(), end)
+    val blocks = kotlin.math.hypot(ex - sx, ez - sz)
+    val label = "${blocks.roundToInt()} 方块 · ${(blocks / 16.0).roundToInt()} 区块"
+    val layout = textMeasurer.measure(
+        text = androidx.compose.ui.text.AnnotatedString(label),
+        style = androidx.compose.ui.text.TextStyle(
+            color = Color.Black,
+            fontSize = 11.sp,
+        ),
+    )
+    val mid = androidx.compose.ui.geometry.Offset((start.x + end.x) / 2f, (start.y + end.y) / 2f)
+    val boxTopLeft = androidx.compose.ui.geometry.Offset(
+        mid.x - layout.size.width / 2f - 6.dp.toPx(),
+        mid.y - layout.size.height / 2f - 4.dp.toPx(),
+    )
+    drawRoundRect(
+        color = Color.White.copy(alpha = 0.9f),
+        topLeft = boxTopLeft,
+        size = androidx.compose.ui.geometry.Size(
+            layout.size.width + 12.dp.toPx(),
+            layout.size.height + 8.dp.toPx(),
+        ),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()),
+    )
+    drawText(
+        textLayoutResult = layout,
+        topLeft = androidx.compose.ui.geometry.Offset(
+            boxTopLeft.x + 6.dp.toPx(),
+            boxTopLeft.y + 4.dp.toPx(),
+        ),
+    )
+}
+
+/** Pin dropped by tapping the map, so a spot stays marked while panning. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPin(
+    state: MapUiState,
+    size: androidx.compose.ui.geometry.Size,
+) {
+    val px = state.pinX ?: return
+    val pz = state.pinZ ?: return
+    val bpp = state.camera.blocksPerPixel
+    val center = androidx.compose.ui.geometry.Offset(
+        ((px - state.camera.centerX) / bpp + size.width / 2f).toFloat(),
+        ((pz - state.camera.centerZ) / bpp + size.height / 2f).toFloat(),
+    )
+    val accent = Color(0xFFFF4D6D)
+    drawLine(
+        accent,
+        center - androidx.compose.ui.geometry.Offset(9.dp.toPx(), 0f),
+        center + androidx.compose.ui.geometry.Offset(9.dp.toPx(), 0f),
+        strokeWidth = 2.dp.toPx(),
+    )
+    drawLine(
+        accent,
+        center - androidx.compose.ui.geometry.Offset(0f, 9.dp.toPx()),
+        center + androidx.compose.ui.geometry.Offset(0f, 9.dp.toPx()),
+        strokeWidth = 2.dp.toPx(),
+    )
+    drawCircle(accent, 3.dp.toPx(), center)
 }
 
 @Composable
@@ -1390,49 +1641,98 @@ private fun SettingsSheet(
     state: MapUiState,
     onJump: (Double, Double) -> Unit,
     onTerrain: (Boolean) -> Unit,
+    onContours: (Boolean) -> Unit,
     onGrid: (Boolean) -> Unit,
+    onSlime: () -> Unit,
+    onMeasure: () -> Unit,
+    onChunkReadout: (Boolean) -> Unit,
+    onShowSpawn: (Boolean) -> Unit,
+    onClickMark: (Boolean) -> Unit,
+    onBiomeY: (Int) -> Unit,
+    onReset: () -> Unit,
     onHighlight: () -> Unit,
     onOpenDebug: () -> Unit,
 ) {
     var xText by rememberSaveable { mutableStateOf("") }
     var zText by rememberSaveable { mutableStateOf("") }
+    var customY by rememberSaveable { mutableStateOf(state.biomeY) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
-            .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("地图设置", style = MaterialTheme.typography.titleMedium)
-
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            androidx.compose.material3.OutlinedButton(
-                onClick = onHighlight,
+            Text(
+                "地图设置",
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = when {
-                        state.highlightBiomeIds.isEmpty() -> "高亮群系"
-                        state.highlightBiomeIds.size == 1 -> state.legend
-                            .firstOrNull { it.id == state.highlightBiomeIds.first() }
-                            ?.name?.let { "高亮：$it" } ?: "已高亮 1 个"
-                        else -> "已高亮 ${state.highlightBiomeIds.size} 个群系"
-                    },
-                    maxLines = 1,
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = state.terrainEnabled, onCheckedChange = onTerrain)
-                Text("地形", style = MaterialTheme.typography.labelMedium)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = state.gridEnabled, onCheckedChange = onGrid)
-                Text("网格", style = MaterialTheme.typography.labelMedium)
-            }
+            )
+            TextButton(onClick = onReset) { Text("恢复默认") }
+        }
+
+        Text("地图上", style = MaterialTheme.typography.labelLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingsToggle("区块网格", state.gridEnabled) { onGrid(!state.gridEnabled) }
+            SettingsToggle("史莱姆区块", StructureType.SLIME_CHUNK in state.enabledStructures, onSlime)
+            SettingsToggle("地形阴影", state.terrainEnabled) { onTerrain(!state.terrainEnabled) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingsToggle("等高线", state.contoursEnabled) { onContours(!state.contoursEnabled) }
+            SettingsToggle("测量距离", state.measureMode, onMeasure)
+        }
+
+        HorizontalDivider()
+        Text("读懂地图", style = MaterialTheme.typography.labelLarge)
+        SettingsSwitch("读数中的区块", state.chunkReadout, onChunkReadout)
+        SettingsSwitch("点击时标记位置", state.clickMark, onClickMark)
+        SettingsSwitch("出生点", state.showSpawn, onShowSpawn)
+
+        HorizontalDivider()
+        Text("该高度的生物群系", style = MaterialTheme.typography.labelLarge)
+        Text(
+            "洞穴会改变地表以下的群系",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingsToggle("地表 Y 63", state.biomeY == 63) { onBiomeY(63) }
+            SettingsToggle("地下 Y 0", state.biomeY == 0) { onBiomeY(0) }
+            SettingsToggle("底部 Y -52", state.biomeY == -52) { onBiomeY(-52) }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "自定义 Y ${state.biomeY}",
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.width(96.dp),
+            )
+            Slider(
+                value = state.biomeY.toFloat(),
+                onValueChange = { customY = it.roundToInt() },
+                onValueChangeFinished = { onBiomeY(customY) },
+                valueRange = -64f..320f,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        HorizontalDivider()
+        OutlinedButton(onClick = onHighlight, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = when {
+                    state.highlightBiomeIds.isEmpty() -> "高亮群系"
+                    state.highlightBiomeIds.size == 1 -> state.legend
+                        .firstOrNull { it.id == state.highlightBiomeIds.first() }
+                        ?.name?.let { "高亮：$it" } ?: "已高亮 1 个"
+                    else -> "已高亮 ${state.highlightBiomeIds.size} 个群系"
+                },
+                maxLines = 1,
+            )
         }
 
         Text("坐标跳转", style = MaterialTheme.typography.labelLarge)
@@ -1469,8 +1769,27 @@ private fun SettingsSheet(
             ) { Text("Go") }
         }
 
-        HorizontalDivider()
         TextButton(onClick = onOpenDebug) { Text("打开自检面板") }
+    }
+}
+
+@Composable
+private fun SettingsToggle(label: String, active: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = active,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+    )
+}
+
+@Composable
+private fun SettingsSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }
 
@@ -1688,6 +2007,7 @@ private fun UndergroundSheet(
     onLayersChange: (Int) -> Unit,
     onSpanChange: (Int) -> Unit,
     onRefresh: () -> Unit,
+    onOverlayChange: (MapOverlay) -> Unit,
 ) {
     val range = when (state.dimension) {
         Dimension.NETHER -> -32..96
@@ -1712,6 +2032,30 @@ private fun UndergroundSheet(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        Text("叠加到地图", style = MaterialTheme.typography.labelLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MapOverlay.entries.forEach { mode ->
+                FilterChip(
+                    selected = state.overlayMode == mode,
+                    onClick = { onOverlayChange(mode) },
+                    label = { Text(mode.label) },
+                )
+            }
+        }
+        if (state.overlayMode != MapOverlay.NONE) {
+            Text(
+                text = if (state.overlayLoading) {
+                    "正在渲染 ${state.overlayBlocks}×${state.overlayBlocks} 方块…"
+                } else {
+                    "已叠加 ${state.overlayBlocks}×${state.overlayBlocks} 方块，" +
+                        "中心 X ${state.overlayOriginX + state.overlayBlocks / 2} " +
+                        "Z ${state.overlayOriginZ + state.overlayBlocks / 2}"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         Surface(
             modifier = Modifier

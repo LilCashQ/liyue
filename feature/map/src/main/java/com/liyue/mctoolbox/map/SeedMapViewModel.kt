@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlin.math.floor
 import androidx.compose.ui.graphics.asImageBitmap
 
 @HiltViewModel
@@ -39,6 +42,14 @@ class SeedMapViewModel @Inject constructor(
     private var oreJob: Job? = null
     private var detailsJob: Job? = null
     private var undergroundJob: Job? = null
+    private var overlayJob: Job? = null
+    private var tileJob: Job? = null
+
+    /** LRU of rendered tiles, keyed by world grid position and render options. */
+    private val tileCache = object : LinkedHashMap<TileKey, MapTile>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<TileKey, MapTile>): Boolean =
+            size > MAX_CACHED_TILES
+    }
 
     fun onViewportChanged(width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
@@ -52,7 +63,7 @@ class SeedMapViewModel @Inject constructor(
 
     fun applySeed() {
         val seed = SeedEngine.parseJavaSeed(_state.value.seedText)
-        _state.update { it.copy(seed = seed, map = null, legend = emptyList(), structures = emptyList()) }
+        _state.update { it.copy(seed = seed, tiles = emptyList(), legend = emptyList(), structures = emptyList()) }
         requestRender(immediate = true)
     }
 
@@ -66,14 +77,14 @@ class SeedMapViewModel @Inject constructor(
             camera
         }
         _state.update {
-            it.copy(gameVersion = gameVersion, camera = clamped, map = null, legend = emptyList(), structures = emptyList())
+            it.copy(gameVersion = gameVersion, camera = clamped, tiles = emptyList(), legend = emptyList(), structures = emptyList())
         }
         requestRender(immediate = true)
     }
 
     fun setDimension(dimension: Dimension) {
         if (dimension == _state.value.dimension) return
-        _state.update { it.copy(dimension = dimension, map = null, legend = emptyList(), structures = emptyList()) }
+        _state.update { it.copy(dimension = dimension, tiles = emptyList(), legend = emptyList(), structures = emptyList()) }
         requestRender(immediate = true)
     }
 
@@ -103,6 +114,11 @@ class SeedMapViewModel @Inject constructor(
                 blockX = blockX,
                 blockZ = blockZ,
             )
+            val surfaceY = if (current.dimension == Dimension.OVERWORLD) {
+                engine.surfaceHeightBlocking(current.seed, current.version, blockX, blockZ)
+            } else {
+                null
+            }
             _state.update {
                 it.copy(
                     selected = PointInfo(
@@ -110,6 +126,7 @@ class SeedMapViewModel @Inject constructor(
                         blockZ = blockZ,
                         biomeName = sample.name,
                         biomeId = sample.id,
+                        surfaceY = surfaceY,
                     ),
                 )
             }
@@ -126,6 +143,89 @@ class SeedMapViewModel @Inject constructor(
 
     fun setGridEnabled(enabled: Boolean) = _state.update { it.copy(gridEnabled = enabled) }
 
+    fun setContoursEnabled(enabled: Boolean) {
+        if (enabled == _state.value.contoursEnabled) return
+        _state.update { it.copy(contoursEnabled = enabled) }
+        requestRender(immediate = true)
+    }
+
+    /** Re-samples the biome layer at another height (surface, caves, bedrock). */
+    fun setBiomeY(y: Int) {
+        val clamped = y.coerceIn(-64, 320)
+        if (clamped == _state.value.biomeY) return
+        _state.update { it.copy(biomeY = clamped) }
+        requestRender(immediate = true)
+    }
+
+    fun setShowSpawn(enabled: Boolean) = _state.update { it.copy(showSpawn = enabled) }
+
+    fun setChunkReadout(enabled: Boolean) = _state.update { it.copy(chunkReadout = enabled) }
+
+    fun setClickMark(enabled: Boolean) = _state.update {
+        it.copy(clickMark = enabled, pinX = if (enabled) it.pinX else null, pinZ = if (enabled) it.pinZ else null)
+    }
+
+    fun toggleMeasureMode() {
+        val next = !_state.value.measureMode
+        _state.update {
+            it.copy(
+                measureMode = next,
+                measureStartX = null, measureStartZ = null,
+                measureEndX = null, measureEndZ = null,
+            )
+        }
+    }
+
+    /** Extra tap target while measuring: first sets the anchor, then the end. */
+    fun measureAt(blockX: Int, blockZ: Int): Boolean {
+        val snapshot = _state.value
+        if (!snapshot.measureMode) return false
+        if (snapshot.measureStartX == null) {
+            _state.update { it.copy(measureStartX = blockX.toDouble(), measureStartZ = blockZ.toDouble()) }
+        } else {
+            _state.update { it.copy(measureEndX = blockX.toDouble(), measureEndZ = blockZ.toDouble()) }
+        }
+        return true
+    }
+
+    fun dropPin(blockX: Int, blockZ: Int) {
+        _state.update { it.copy(pinX = blockX.toDouble(), pinZ = blockZ.toDouble()) }
+    }
+
+    fun toggleSlimeChunks() {
+        val current = _state.value.enabledStructures
+        val next = if (StructureType.SLIME_CHUNK in current) {
+            current - StructureType.SLIME_CHUNK
+        } else {
+            current + StructureType.SLIME_CHUNK
+        }
+        _state.update { it.copy(enabledStructures = next) }
+        loadStructures()
+    }
+
+    /** Back to the stock look, like Chunkbase's restore-defaults button. */
+    fun resetSettings() {
+        _state.update {
+            it.copy(
+                terrainEnabled = true,
+                contoursEnabled = false,
+                gridEnabled = true,
+                biomeY = 63,
+                showSpawn = true,
+                chunkReadout = false,
+                clickMark = true,
+                measureMode = false,
+                measureStartX = null, measureStartZ = null,
+                measureEndX = null, measureEndZ = null,
+                pinX = null, pinZ = null,
+                highlightBiomeIds = emptySet(),
+                enabledStructures = StructureType.defaultEnabled,
+            )
+        }
+        requestRender(immediate = true)
+        loadStructures()
+    }
+
     fun toggleHighlightBiome(biomeId: Int) {
         val current = _state.value.highlightBiomeIds
         val next = if (biomeId in current) current - biomeId else current + biomeId
@@ -139,26 +239,36 @@ class SeedMapViewModel @Inject constructor(
         requestRender(immediate = true)
     }
 
-    /** Loads the biome breakdown for the visible tile on demand. */
+    /** Loads the biome breakdown for the visible area on demand. */
     fun requestLegend() {
         val snapshot = _state.value
-        val map = snapshot.map ?: return
+        if (viewportWidth <= 0 || viewportHeight <= 0) return
         legendJob?.cancel()
         legendJob = viewModelScope.launch {
             try {
-                val step = 4
-                val width = (map.width / step).coerceAtLeast(8)
-                val height = (map.height / step).coerceAtLeast(8)
+                val cellBlocks = snapshot.tileCellBlocks * 4
+                val halfW = viewportWidth * snapshot.camera.blocksPerPixel / 2.0
+                val halfH = viewportHeight * snapshot.camera.blocksPerPixel / 2.0
+                val originX = Math.floorDiv(
+                    floor(snapshot.camera.centerX - halfW).toLong(),
+                    cellBlocks.toLong(),
+                ) * cellBlocks
+                val originZ = Math.floorDiv(
+                    floor(snapshot.camera.centerZ - halfH).toLong(),
+                    cellBlocks.toLong(),
+                ) * cellBlocks
+                val width = (halfW * 2 / cellBlocks).toInt().coerceIn(16, 128)
+                val height = (halfH * 2 / cellBlocks).toInt().coerceIn(16, 128)
                 val ids = withContext(Dispatchers.Default) {
                     engine.biomeGridBlocking(
                         seed = snapshot.seed,
                         version = snapshot.version,
                         dimension = snapshot.dimension,
-                        originBlockX = map.originBlockX,
-                        originBlockZ = map.originBlockZ,
+                        originBlockX = originX.toInt(),
+                        originBlockZ = originZ.toInt(),
                         width = width,
                         height = height,
-                        cellBlocks = map.blocksPerSample * step,
+                        cellBlocks = cellBlocks,
                     )
                 }
                 val counts = HashMap<Int, Int>()
@@ -303,6 +413,7 @@ class SeedMapViewModel @Inject constructor(
     fun setUndergroundY(y: Int) {
         if (y == _state.value.undergroundY) return
         _state.update { it.copy(undergroundY = y) }
+        if (_state.value.overlayMode != MapOverlay.NONE) loadOverlay()
     }
 
     fun setUndergroundLayers(layers: Int) {
@@ -387,6 +498,119 @@ class SeedMapViewModel @Inject constructor(
         }
     }
 
+    fun setOverlayMode(mode: MapOverlay) {
+        _state.update { it.copy(overlayMode = mode, overlayImage = null) }
+        if (mode == MapOverlay.NONE) {
+            overlayJob?.cancel()
+            _state.update { it.copy(overlayLoading = false) }
+        } else {
+            loadOverlay()
+        }
+    }
+
+    fun setOverlayY(y: Int) {
+        val clamped = y.coerceIn(-64, 320)
+        if (clamped == _state.value.overlayY) return
+        _state.update { it.copy(overlayY = clamped) }
+        if (_state.value.overlayMode != MapOverlay.NONE) loadOverlay()
+    }
+
+    /**
+     * Renders the cave or ravine slice that covers the current view and keeps it
+     * as a translucent layer over the biome map. Tiles are 256 blocks at a 4:1
+     * sample ratio, so one call paints 64x64 pixels; they are stitched in
+     * parallel because carving dominates the cost.
+     */
+    fun loadOverlay(blocks: Int = OVERLAY_BLOCKS) {
+        val snapshot = _state.value
+        val mode = snapshot.overlayMode
+        if (mode == MapOverlay.NONE) return
+        overlayJob?.cancel()
+        val span = blocks.coerceIn(512, 2048)
+        val tilesPerSide = span / UNDERGROUND_TILE_BLOCKS
+        val tilePx = 64
+        val totalPx = tilesPerSide * tilePx
+        val originX = Math.floorDiv(snapshot.camera.centerX.toInt() - span / 2, 16) * 16
+        val originZ = Math.floorDiv(snapshot.camera.centerZ.toInt() - span / 2, 16) * 16
+        val y = snapshot.overlayY
+        val layers = mode.layers
+        overlayJob = viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    overlayLoading = true,
+                    overlayImage = null,
+                    overlayBlocks = span,
+                    overlayOriginX = originX,
+                    overlayOriginZ = originZ,
+                )
+            }
+            try {
+                val pixels = IntArray(totalPx * totalPx)
+                val lock = Any()
+                var done = 0
+                coroutineScope {
+                    for (ty in 0 until tilesPerSide) {
+                        for (tx in 0 until tilesPerSide) {
+                            launch(Dispatchers.Default) {
+                                val bytes = engine.undergroundTileBlocking(
+                                    seed = snapshot.seed,
+                                    version = snapshot.version,
+                                    dimension = snapshot.dimension,
+                                    scale = UNDERGROUND_TILE_SCALE,
+                                    x = originX + tx * UNDERGROUND_TILE_BLOCKS,
+                                    z = originZ + ty * UNDERGROUND_TILE_BLOCKS,
+                                    width = tilePx,
+                                    height = tilePx,
+                                    y = y,
+                                    layers = layers,
+                                ) ?: return@launch
+                                synchronized(lock) {
+                                    for (py in 0 until tilePx) {
+                                        for (px in 0 until tilePx) {
+                                            val src = (py * tilePx + px) * 4
+                                            val alpha = bytes[src + 3].toInt() and 0xFF
+                                            val dx = tx * tilePx + px
+                                            val dy = ty * tilePx + py
+                                            pixels[dy * totalPx + dx] = if (alpha == 0) {
+                                                0
+                                            } else {
+                                                argb(
+                                                    bytes[src],
+                                                    bytes[src + 1],
+                                                    bytes[src + 2],
+                                                    0xFF.toByte(),
+                                                )
+                                            }
+                                        }
+                                    }
+                                    done++
+                                    // Publish once the first tiles land so the
+                                    // layer grows in while the rest render.
+                                    if (done == 1 || done == tilesPerSide) {
+                                        val frame = android.graphics.Bitmap.createBitmap(
+                                            pixels.copyOf(), totalPx, totalPx,
+                                            android.graphics.Bitmap.Config.ARGB_8888,
+                                        ).asImageBitmap()
+                                        _state.update { it.copy(overlayImage = frame) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                val frame = android.graphics.Bitmap.createBitmap(
+                    pixels.copyOf(), totalPx, totalPx,
+                    android.graphics.Bitmap.Config.ARGB_8888,
+                ).asImageBitmap()
+                _state.update { it.copy(overlayImage = frame, overlayLoading = false) }
+            } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                android.util.Log.e("LiyueSeedMap", "overlay render failed", t)
+                _state.update { it.copy(overlayLoading = false, error = t.message ?: t.toString()) }
+            }
+        }
+    }
+
     fun setUndergroundSpan(span: Int) {
         val next = span.coerceIn(256, 1024)
         _state.update { it.copy(undergroundSpan = next) }
@@ -422,19 +646,26 @@ class SeedMapViewModel @Inject constructor(
                         gameVersion.engine.maxBlocksPerPixel,
                     ),
                 ),
-                map = null,
+                tiles = emptyList(),
                 legend = emptyList(),
                 structures = emptyList(),
                 selected = null,
+                overlayMode = target.overlay,
+                overlayImage = null,
             )
         }
         requestRender(immediate = true)
+        if (target.overlay != MapOverlay.NONE) loadOverlay()
     }
 
     private fun loadStructures() {
         structureJob?.cancel()
         val snapshot = _state.value
         val types = snapshot.enabledStructures
+            // Slime chunks are drawn straight from the seed, one 16x16 square
+            // per chunk; asking the structure enumerator for them is both slow
+            // and lossy once a screen holds thousands of chunks.
+            .filter { it != StructureType.SLIME_CHUNK }
             .filter { it.dimension == snapshot.dimension }
             .filter { snapshot.camera.blocksPerPixel <= it.maxBlocksPerPixel }
         if (viewportWidth <= 0) {
@@ -518,49 +749,84 @@ class SeedMapViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Schedules map tiles for the current camera. Cached tiles are published
+     * synchronously so panning inside already-rendered ground is instant; the
+     * missing ones render in parallel and stream in one by one.
+     */
     private fun requestRender(immediate: Boolean) {
         if (viewportWidth <= 0 || viewportHeight <= 0) return
-        renderJob?.cancel()
-        val request = _state.value
-        renderJob = viewModelScope.launch {
+        val snapshot = _state.value
+        var baseCells = BiomeMapRenderer.cellBlocksFor(snapshot.camera.blocksPerPixel)
+        // A 1:1 tile grid at a 6" screen would need two and a half million
+        // biome samples; halve the resolution until the frame is affordable.
+        var guard = 0
+        while (guard++ < 6 && tileCount(snapshot, baseCells) > MAX_TILES_PER_FRAME) {
+            baseCells = BiomeMapRenderer.coarsen(baseCells, 2)
+        }
+        // While the camera is moving, render at half detail first: a quarter of
+        // the samples lands quickly and the full pass only runs once it settles.
+        val cellBlocks = if (immediate) baseCells else BiomeMapRenderer.coarsen(baseCells, 2)
+        val terrain = snapshot.terrainEnabled
+        val contours = snapshot.contoursEnabled
+        val highlightMask = snapshot.highlightBiomeIds.takeIf { it.isNotEmpty() }?.let { ids ->
+            ByteArray(256).also { mask -> ids.forEach { id -> mask[id.coerceIn(0, 255)] = 1 } }
+        }
+        val highlightHash = snapshot.highlightBiomeIds.hashCode()
+        val keys = tileKeys(snapshot, cellBlocks, terrain, contours, highlightHash)
+        val cached = synchronized(tileCache) { keys.mapNotNull { tileCache[it] } }
+        val stale = if (cellBlocks != snapshot.tileCellBlocks) snapshot.tiles else snapshot.staleTiles
+        _state.update {
+            it.copy(
+                tiles = cached,
+                staleTiles = stale,
+                tileCellBlocks = cellBlocks,
+                rendering = keys.size > cached.size,
+                error = null,
+            )
+        }
+        tileJob?.cancel()
+        val missing = synchronized(tileCache) { keys.filterNot { tileCache.containsKey(it) } }
+        if (missing.isEmpty()) {
+            loadStructures()
+            if (_state.value.oreKind != null) loadOres()
+            return
+        }
+        tileJob = viewModelScope.launch {
             if (!immediate) delay(DEBOUNCE_MS)
-            _state.update { it.copy(rendering = true, error = null) }
+            _state.update { it.copy(rendering = true) }
+            val started = System.nanoTime()
             try {
-                val started = System.nanoTime()
-                val rendered = renderer.render(
-                    RenderRequest(
-                        seed = request.seed,
-                        version = request.version,
-                        dimension = request.dimension,
-                        centerX = request.camera.centerX,
-                        centerZ = request.camera.centerZ,
-                        viewportWidthPx = viewportWidth,
-                        viewportHeightPx = viewportHeight,
-                        blocksPerPixel = request.camera.blocksPerPixel,
-                        terrain = request.terrainEnabled,
-                        contours = request.terrainEnabled,
-                        highlightMask = request.highlightBiomeIds.takeIf { it.isNotEmpty() }?.let { ids ->
-                            ByteArray(256).also { mask ->
-                                ids.forEach { id -> mask[id.coerceIn(0, 255)] = 1 }
+                val permits = Semaphore(TILE_PARALLELISM)
+                coroutineScope {
+                    missing.forEach { key ->
+                        launch(Dispatchers.Default) {
+                            permits.withPermit {
+                                if (synchronized(tileCache) { tileCache.containsKey(key) }) {
+                                    return@withPermit
+                                }
+                                val tile = renderer.renderTile(
+                                    TileRequest(
+                                        key = key,
+                                        version = snapshot.version,
+                                        dimension = snapshot.dimension,
+                                        highlightMask = highlightMask,
+                                    ),
+                                )
+                                synchronized(tileCache) { tileCache[key] = tile }
+                                publishTiles(keys)
                             }
-                        },
-                    ),
-                )
-                val millis = (System.nanoTime() - started) / 1_000_000
-                _state.update {
-                    it.copy(
-                        map = rendered,
-                        rendering = false,
-                        renderMillis = millis,
-                        selected = it.selected?.let { point ->
-                            point.copy(
-                                biomeName = engine.biomeName(request.version, point.biomeId),
-                            )
-                        },
-                    )
+                        }
+                    }
                 }
+                val millis = (System.nanoTime() - started) / 1_000_000
+                _state.update { it.copy(rendering = false, renderMillis = millis, staleTiles = emptyList()) }
                 loadStructures()
                 if (_state.value.oreKind != null) loadOres()
+                if (_state.value.legend.isEmpty()) requestLegend()
+                if (!immediate && _state.value.tileCellBlocks > baseCells) {
+                    requestRender(immediate = true)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (t: Throwable) {
@@ -570,8 +836,77 @@ class SeedMapViewModel @Inject constructor(
         }
     }
 
+    /** Tiles that cover the viewport for [snapshot], plus one tile of margin. */
+    private fun tileKeys(
+        snapshot: MapUiState,
+        cellBlocks: Int,
+        terrain: Boolean,
+        contours: Boolean,
+        highlightHash: Int,
+    ): List<TileKey> {
+        val spanBlocks = BiomeMapRenderer.TILE_PX.toDouble() * cellBlocks
+        val halfW = viewportWidth * snapshot.camera.blocksPerPixel / 2.0
+        val halfH = viewportHeight * snapshot.camera.blocksPerPixel / 2.0
+        val cx = snapshot.camera.centerX
+        val cz = snapshot.camera.centerZ
+        // Keep a fifth of a screen of margin so a short pan does not expose
+        // blank edges, without rendering a whole extra ring of tiles.
+        val marginX = halfW * TILE_MARGIN
+        val marginZ = halfH * TILE_MARGIN
+        val tx0 = floor((cx - halfW - marginX) / spanBlocks).toInt()
+        val tx1 = floor((cx + halfW + marginX) / spanBlocks).toInt()
+        val tz0 = floor((cz - halfH - marginZ) / spanBlocks).toInt()
+        val tz1 = floor((cz + halfH + marginZ) / spanBlocks).toInt()
+        val keys = ArrayList<TileKey>((tx1 - tx0 + 1) * (tz1 - tz0 + 1))
+        for (tz in tz0..tz1) {
+            for (tx in tx0..tx1) {
+                keys += TileKey(
+                    seed = snapshot.seed,
+                    versionId = snapshot.version.id,
+                    dimensionId = snapshot.dimension.id,
+                    cellBlocks = cellBlocks,
+                    tx = tx,
+                    tz = tz,
+                    terrain = terrain,
+                    contours = contours,
+                    elevation = snapshot.biomeY,
+                    highlightHash = highlightHash,
+                )
+            }
+        }
+        return keys
+    }
+
+    /** How many tiles a viewport at [cellBlocks] would need, margin included. */
+    private fun tileCount(snapshot: MapUiState, cellBlocks: Int): Int {
+        val spanBlocks = BiomeMapRenderer.TILE_PX.toDouble() * cellBlocks
+        val widthBlocks = viewportWidth * snapshot.camera.blocksPerPixel * (1 + 2 * TILE_MARGIN)
+        val heightBlocks = viewportHeight * snapshot.camera.blocksPerPixel * (1 + 2 * TILE_MARGIN)
+        val columns = kotlin.math.ceil(widthBlocks / spanBlocks).toInt().coerceAtLeast(1)
+        val rows = kotlin.math.ceil(heightBlocks / spanBlocks).toInt().coerceAtLeast(1)
+        return columns * rows
+    }
+
+    private fun publishTiles(keys: List<TileKey>) {
+        val cached = synchronized(tileCache) { keys.mapNotNull { tileCache[it] } }
+        _state.update { it.copy(tiles = cached) }
+    }
+
     companion object {
         private const val DEBOUNCE_MS = 140L
+
+        /** Extra ground rendered around the viewport, as a share of its size. */
+        private const val TILE_MARGIN = 0.12
+
+        /** Tiles kept in memory; each is about 262 kB, so this is ~25 MB. */
+        private const val MAX_CACHED_TILES = 96
+
+        /** Upper bound on tiles rendered for one frame; keeps a pan responsive. */
+        private const val MAX_TILES_PER_FRAME = 72
+
+        /** Tiles rendered at once; the native renderer is happy on a few cores. */
+        private val TILE_PARALLELISM =
+            Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
 
         /** Ore scan window, in blocks from the screen centre. */
         private const val ORE_MIN_HALF_BLOCKS = 128
@@ -583,6 +918,7 @@ class SeedMapViewModel @Inject constructor(
         /** Underground tiles are 64 px of 4-block samples, i.e. 256 blocks. */
         private const val UNDERGROUND_TILE_BLOCKS = 256
         private const val UNDERGROUND_TILE_SCALE = 4
+        private const val OVERLAY_BLOCKS = 1024
         private val UNDERGROUND_EMPTY_PIXEL = 0xFF101B2B.toInt()
     }
 }

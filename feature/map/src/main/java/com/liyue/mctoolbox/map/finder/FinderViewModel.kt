@@ -6,6 +6,7 @@ import com.liyue.mctoolbox.map.GameVersion
 import com.liyue.mctoolbox.map.MapTarget
 import com.liyue.mctoolbox.map.StructureType
 import com.liyue.mctoolbox.seedgen.Dimension
+import com.liyue.mctoolbox.seedgen.OreKind
 import com.liyue.mctoolbox.seedgen.SeedEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -61,6 +62,25 @@ class FinderViewModel @Inject constructor(
         it.copy(tab = tab, hits = emptyList(), searched = false, error = null)
     }
 
+    /**
+     * Applies one Chunkbase app card: switches the tab and, for structure apps,
+     * pre-selects the structure so the user only has to press 查找.
+     */
+    fun applyPreset(app: ChunkbaseApp) {
+        _state.update { current ->
+            val structure = app.structure ?: current.structure
+            val options = BiomeCatalog.forDimension(current.biomeOptions, current.biomeDimension)
+            current.copy(
+                tab = app.tab,
+                structure = structure,
+                biome = current.biome ?: options.firstOrNull(),
+                hits = emptyList(),
+                searched = false,
+                error = null,
+            )
+        }
+    }
+
     fun onSeedTextChange(text: String) = _state.update { it.copy(seedText = text) }
 
     fun onVersionChange(version: GameVersion) {
@@ -77,6 +97,9 @@ class FinderViewModel @Inject constructor(
             }
         }
     }
+
+    fun onVeinKindChange(kind: OreKind) =
+        _state.update { it.copy(veinKind = kind, hits = emptyList(), searched = false) }
 
     fun onStructureChange(type: StructureType) =
         _state.update { it.copy(structure = type, hits = emptyList(), searched = false) }
@@ -150,7 +173,10 @@ class FinderViewModel @Inject constructor(
         val seed = SeedEngine.parseJavaSeed(state.seedText)
         val version = state.version.engine
         if (state.version.edition.isBedrock) {
-            val bedrockTabs = setOf(FinderTab.SLIME, FinderTab.SPAWN)
+            val bedrockTabs = setOf(
+                FinderTab.SLIME, FinderTab.SPAWN, FinderTab.ORE_VEIN, FinderTab.GOLDEN_APPLE,
+                FinderTab.LAVA_POOL, FinderTab.DUNGEON,
+            )
             if (state.tab in bedrockTabs) {
                 throw IllegalStateException("${state.tab.label} 只支持 Java 版算法")
             }
@@ -195,6 +221,46 @@ class FinderViewModel @Inject constructor(
                 centerX = state.centerX,
                 centerZ = state.centerZ,
                 radius = state.radius,
+                limit = state.limit,
+            )
+
+            FinderTab.ORE_VEIN -> finder.searchOreVeins(
+                seed = seed,
+                version = version,
+                kind = state.veinKind,
+                centerX = state.centerX,
+                centerZ = state.centerZ,
+                radius = state.radius,
+                limit = state.limit,
+            )
+
+            FinderTab.LAVA_POOL -> finder.searchLavaPools(
+                seed = seed,
+                version = version,
+                centerX = state.centerX,
+                centerZ = state.centerZ,
+                radius = state.radius,
+                limit = state.limit,
+            )
+
+            FinderTab.DUNGEON -> finder.searchDungeons(
+                seed = seed,
+                version = version,
+                centerX = state.centerX,
+                centerZ = state.centerZ,
+                radius = state.radius,
+                limit = state.limit,
+            )
+
+            FinderTab.GOLDEN_APPLE -> finder.searchChestLoot(
+                seed = seed,
+                version = version,
+                type = state.structure,
+                centerX = state.centerX,
+                centerZ = state.centerZ,
+                radius = state.radius,
+                itemName = "minecraft:golden_apple",
+                itemLabel = "金苹果",
                 limit = state.limit,
             )
 

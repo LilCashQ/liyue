@@ -28,11 +28,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.liyue.mctoolbox.auth.AuthViewModel
 import com.liyue.mctoolbox.feature.seeddebug.SeedGenScreen
+import com.liyue.mctoolbox.home.BedrockLibraryScreen
 import com.liyue.mctoolbox.home.HomeScreen
 import com.liyue.mctoolbox.home.ToolCatalog
 import com.liyue.mctoolbox.home.ToolEntry
 import com.liyue.mctoolbox.map.MapTarget
 import com.liyue.mctoolbox.map.SeedMapScreen
+import com.liyue.mctoolbox.map.GameVersions
+import com.liyue.mctoolbox.map.MapOverlay
+import com.liyue.mctoolbox.map.finder.AppKind
+import com.liyue.mctoolbox.map.finder.ChunkbaseApp
+import com.liyue.mctoolbox.map.finder.ChunkbaseAppsScreen
 import com.liyue.mctoolbox.map.finder.FinderScreen
 import com.liyue.mctoolbox.ui.AboutScreen
 import com.liyue.mctoolbox.ui.AuthScreen
@@ -40,7 +46,7 @@ import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Screen { TABS, MAP, FINDER, DEBUG, AUTH }
+private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, DEBUG, AUTH }
 private enum class Tab { HOME, TOOLS, ABOUT }
 
 @AndroidEntryPoint
@@ -61,6 +67,8 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(prefs.getString("recent_tool", null))
                 }
                 var mapTarget by remember { mutableStateOf<MapTarget?>(null) }
+                var finderPreset by remember { mutableStateOf<ChunkbaseApp?>(null) }
+                var finderFromMap by remember { mutableStateOf(false) }
 
                 fun openTool(tool: ToolEntry) {
                     if (!tool.available) return
@@ -68,7 +76,8 @@ class MainActivity : ComponentActivity() {
                     prefs.edit().putString("recent_tool", tool.id).apply()
                     when (tool.id) {
                         ToolCatalog.SEED_MAP -> screen = Screen.MAP
-                        ToolCatalog.STRUCTURE_FINDER -> screen = Screen.FINDER
+                        ToolCatalog.STRUCTURE_FINDER -> screen = Screen.APPS
+                        ToolCatalog.BEDROCK_LIBRARY -> screen = Screen.BEDROCK
                     }
                 }
 
@@ -76,15 +85,73 @@ class MainActivity : ComponentActivity() {
                     Screen.MAP -> SeedMapScreen(
                         onBack = { screen = Screen.TABS },
                         onOpenDebug = { screen = Screen.DEBUG },
+                        onOpenFinder = { seedText, versionLabel ->
+                            com.liyue.mctoolbox.map.FinderLaunch.seedText = seedText
+                            com.liyue.mctoolbox.map.FinderLaunch.versionLabel = versionLabel
+                            finderFromMap = true
+                            finderPreset = null
+                            screen = Screen.FINDER
+                        },
                         initialTarget = mapTarget,
                         onTargetConsumed = { mapTarget = null },
                     )
-                    Screen.FINDER -> FinderScreen(
+                    Screen.APPS -> ChunkbaseAppsScreen(
                         onBack = { screen = Screen.TABS },
+                        onOpenApp = { app ->
+                            when (app.kind) {
+                                AppKind.SEED_MAP -> screen = Screen.MAP
+                                AppKind.CAVE, AppKind.RAVINE -> {
+                                    mapTarget = MapTarget(
+                                        seed = 0L,
+                                        seedText = "0",
+                                        versionLabel = GameVersions.default.label,
+                                        dimension = com.liyue.mctoolbox.seedgen.Dimension.OVERWORLD,
+                                        centerX = 0.0,
+                                        centerZ = 0.0,
+                                        overlay = if (app.kind == AppKind.CAVE) {
+                                            MapOverlay.CAVE
+                                        } else {
+                                            MapOverlay.RAVINE
+                                        },
+                                    )
+                                    screen = Screen.MAP
+                                }
+                                else -> {
+                                    finderPreset = app
+                                    screen = Screen.FINDER
+                                }
+                            }
+                        },
+                    )
+                    Screen.BEDROCK -> BedrockLibraryScreen(
+                        onBack = { screen = Screen.TABS },
+                        onOpenSeedMap = { label ->
+                            val target = GameVersions.find(label) ?: GameVersions.default
+                            mapTarget = MapTarget(
+                                seed = 0L,
+                                seedText = "0",
+                                versionLabel = target.label,
+                                dimension = com.liyue.mctoolbox.seedgen.Dimension.OVERWORLD,
+                                centerX = 0.0,
+                                centerZ = 0.0,
+                            )
+                            screen = Screen.MAP
+                        },
+                    )
+                    Screen.FINDER -> FinderScreen(
+                        onBack = {
+                            screen = if (finderFromMap) {
+                                finderFromMap = false
+                                Screen.MAP
+                            } else {
+                                Screen.APPS
+                            }
+                        },
                         onOpenMap = { target ->
                             mapTarget = target
                             screen = Screen.MAP
                         },
+                        preset = finderPreset,
                     )
                     Screen.DEBUG -> SeedGenScreen(onBack = { screen = Screen.TABS })
                     Screen.AUTH -> AuthScreen(onBack = { screen = Screen.TABS })

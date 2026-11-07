@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -76,7 +77,7 @@ fun HomeScreen(
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "里悦工具箱",
+                        text = "里悦",
                         color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 40.sp,
                         fontWeight = FontWeight.Bold,
@@ -88,7 +89,7 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.primaryContainer,
                     ) {
                         Text(
-                            text = "v0.12.0",
+                            text = appVersion(),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -132,16 +133,6 @@ fun HomeScreen(
 
         item(span = { GridItemSpan(maxLineSpan) }) {
             SectionTitle(icon = Icons.Filled.Star, title = "常用功能")
-        }
-
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Text(
-                text = "v0.12.0 · GPL-3.0 开源 · 群系来自 cubiomes",
-                modifier = Modifier.padding(top = 20.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-            )
         }
 
         if (tools.isEmpty()) {
@@ -323,13 +314,14 @@ private fun ToolCard(tool: ToolEntry, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(132.dp)
+            .heightIn(min = 148.dp)
             .clickable(enabled = tool.available, onClick = onClick),
         shape = RoundedCornerShape(22.dp),
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .heightIn(min = 148.dp)
                 .padding(16.dp),
         ) {
             Surface(
@@ -351,9 +343,8 @@ private fun ToolCard(tool: ToolEntry, onClick: () -> Unit) {
                 text = tool.subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(10.dp))
             Text(
                 text = if (tool.available) "打开" else "即将上线",
                 style = MaterialTheme.typography.labelSmall,
@@ -364,5 +355,16 @@ private fun ToolCard(tool: ToolEntry, onClick: () -> Unit) {
                 },
             )
         }
+    }
+}
+
+/** Version chip text, read from the installed package instead of a constant. */
+@Composable
+private fun appVersion(): String {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return androidx.compose.runtime.remember(context) {
+        runCatching {
+            "v" + context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrDefault("v?")
     }
 }

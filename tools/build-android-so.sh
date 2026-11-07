@@ -47,6 +47,8 @@ SOURCES=(
     "$CPP/liyue_seedgen.c"
     "$CPP/liyue_bedrock.c"
     "$CPP/liyue_bedrock_jni.c"
+    "$CPP/liyue_dungeon.c"
+    "$CPP/liyue_dungeon_jni.c"
     "$CPP/axolotl/"*.c
 )
 

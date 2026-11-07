@@ -4,12 +4,16 @@ import com.liyue.mctoolbox.map.Edition
 import com.liyue.mctoolbox.map.StructureType
 import com.liyue.mctoolbox.seedgen.Dimension
 import com.liyue.mctoolbox.seedgen.McVersion
+import com.liyue.mctoolbox.seedgen.OreKind
 import com.liyue.mctoolbox.seedgen.SeedEngine
 import com.liyue.mctoolbox.seedgen.StructurePos
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
+import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
@@ -38,42 +42,7 @@ class FinderEngine(private val engine: SeedEngine) {
         val dimension = type.dimension
         val maxRadius = minOf(radius, regionCapBlocks(type))
 
-        val found = withContext(Dispatchers.Default) {
-            var current = 512
-            var hits = emptyList<SeedEngine.FeatureHit>()
-            while (true) {
-                val raw = if (edition.isBedrock) {
-                    engine.bedrockFeaturesBlocking(
-                        seed = seed,
-                        version = version,
-                        dimension = dimension,
-                        minBlockX = centerX - current,
-                        minBlockZ = centerZ - current,
-                        maxBlockX = centerX + current,
-                        maxBlockZ = centerZ + current,
-                        featureMask = type.featureBit,
-                        maxCount = 4096,
-                    )
-                } else {
-                    engine.findFeaturesBlocking(
-                        seed = seed,
-                        version = version,
-                        dimension = dimension,
-                        minBlockX = centerX - current,
-                        minBlockZ = centerZ - current,
-                        maxBlockX = centerX + current,
-                        maxBlockZ = centerZ + current,
-                        featureMask = type.featureBit,
-                        maxCount = 4096,
-                    )
-                }
-                hits = raw.filter { it.kind == type.featureBit }
-                if (hits.size >= limit || current >= maxRadius) break
-                current = minOf(current * 2, maxRadius)
-            }
-            hits.sortedBy { squaredDistance(it.x, it.z, centerX, centerZ) }.take(limit)
-        }
-
+        val found = collectStructures(seed, version, edition, type, centerX, centerZ, maxRadius, limit)
         return found.map { hit ->
             val sample = engine.biomeAt(seed, version, dimension, hit.x, hit.z)
             FinderHit(
@@ -88,6 +57,104 @@ class FinderEngine(private val engine: SeedEngine) {
                 dimension = dimension,
             )
         }
+    }
+
+    /** Grows the search box from 512 blocks until [want] hits or the cap. */
+    private suspend fun collectStructures(
+        seed: Long,
+        version: McVersion,
+        edition: Edition,
+        type: StructureType,
+        centerX: Int,
+        centerZ: Int,
+        maxRadius: Int,
+        want: Int,
+    ): List<SeedEngine.FeatureHit> = withContext(Dispatchers.Default) {
+        val dimension = type.dimension
+        var current = 512
+        var hits = emptyList<SeedEngine.FeatureHit>()
+        while (true) {
+            val raw = if (edition.isBedrock) {
+                engine.bedrockFeaturesBlocking(
+                    seed = seed,
+                    version = version,
+                    dimension = dimension,
+                    minBlockX = centerX - current,
+                    minBlockZ = centerZ - current,
+                    maxBlockX = centerX + current,
+                    maxBlockZ = centerZ + current,
+                    featureMask = type.featureBit,
+                    maxCount = 4096,
+                )
+            } else {
+                engine.findFeaturesBlocking(
+                    seed = seed,
+                    version = version,
+                    dimension = dimension,
+                    minBlockX = centerX - current,
+                    minBlockZ = centerZ - current,
+                    maxBlockX = centerX + current,
+                    maxBlockZ = centerZ + current,
+                    featureMask = type.featureBit,
+                    maxCount = 4096,
+                )
+            }
+            hits = raw.filter { it.kind == type.featureBit }
+            if (hits.size >= want || current >= maxRadius) break
+            current = minOf(current * 2, maxRadius)
+        }
+        hits.sortedBy { squaredDistance(it.x, it.z, centerX, centerZ) }.take(want)
+    }
+
+    /**
+     * Chunkbase's "Golden Apple" app: roll the chests of every structure in
+     * range and keep the ones that actually hold the item. Bedrock loot tables
+     * are not modelled by the bundled engine, so this is Java only.
+     */
+    suspend fun searchChestLoot(
+        seed: Long,
+        version: McVersion,
+        type: StructureType,
+        centerX: Int,
+        centerZ: Int,
+        radius: Int,
+        itemName: String,
+        itemLabel: String,
+        limit: Int,
+        edition: Edition = Edition.JAVA,
+    ): List<FinderHit> {
+        if (!StructureSupport.isSupported(type, version)) {
+            throw IllegalStateException("${type.label}在 ${version.label} 中不存在")
+        }
+        if (edition.isBedrock) throw IllegalStateException("宝箱战利品只支持 Java 版")
+        val maxRadius = minOf(radius, regionCapBlocks(type))
+        val structures = collectStructures(seed, version, edition, type, centerX, centerZ, maxRadius, 96)
+        val hits = ArrayList<FinderHit>()
+        withContext(Dispatchers.Default) {
+            for (structure in structures) {
+                val chests = engine.lootSearchBlocking(
+                    seed = seed,
+                    version = version,
+                    dimension = type.dimension,
+                    x = structure.x,
+                    z = structure.z,
+                    featureBit = type.featureBit,
+                    itemName = itemName,
+                )
+                for (chest in chests) {
+                    hits += FinderHit(
+                        title = "$itemLabel ×${chest.count} · ${type.label}",
+                        x = chest.x,
+                        z = chest.z,
+                        distance = distance(chest.x, chest.z, centerX, centerZ),
+                        detail = "结构中心 ${structure.x}, ${structure.z}",
+                        dimension = type.dimension,
+                    )
+                    if (hits.size >= limit) return@withContext
+                }
+            }
+        }
+        return hits.sortedBy { it.distance }.take(limit)
     }
 
     /** Nearest occurrences of a biome, refined to a 4-block grid sample. */
@@ -205,6 +272,127 @@ class FinderEngine(private val engine: SeedEngine) {
         return best
     }
 
+    /**
+     * Underground lava pools. Below the lava line every carved cave cell is
+     * filled with lava, so the finder carves a horizontal slice with the same
+     * cave noise the game uses and clusters the open cells. This is how the
+     * pools line up with what you actually walk into, and it costs roughly
+     * 150 ms per 256x256 block tile (cave carving only, no canyon pass).
+     */
+    suspend fun searchLavaPools(
+        seed: Long,
+        version: McVersion,
+        centerX: Int,
+        centerZ: Int,
+        radius: Int,
+        limit: Int,
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
+    ): List<FinderHit> = withContext(Dispatchers.Default) {
+        val lavaY = if (version.ordinal >= McVersion.MC_1_18_2.ordinal) -54 else 10
+        val span = radius.coerceIn(TILE_BLOCKS, LAVA_MAX_SPAN)
+        val tilesPerSide = max(1, span / TILE_BLOCKS)
+        val total = tilesPerSide * tilesPerSide
+        val originX = Math.floorDiv(centerX - span / 2, TILE_BLOCKS) * TILE_BLOCKS
+        val originZ = Math.floorDiv(centerZ - span / 2, TILE_BLOCKS) * TILE_BLOCKS
+        val hits = mutableListOf<FinderHit>()
+        var done = 0
+        for (tileZ in 0 until tilesPerSide) {
+            for (tileX in 0 until tilesPerSide) {
+                currentCoroutineContext().ensureActive()
+                val px = originX + tileX * TILE_BLOCKS
+                val pz = originZ + tileZ * TILE_BLOCKS
+                val rgba = engine.undergroundTileBlocking(
+                    seed = seed,
+                    version = version,
+                    dimension = Dimension.OVERWORLD,
+                    scale = TILE_SCALE,
+                    x = px,
+                    z = pz,
+                    width = TILE_PIXELS,
+                    height = TILE_PIXELS,
+                    y = lavaY,
+                    layers = LAYER_CAVE,
+                )
+                if (rgba != null) {
+                    hits += poolClusters(rgba, px, pz, lavaY, centerX, centerZ)
+                }
+                done++
+                onProgress(done, total)
+            }
+        }
+        hits.sortedBy { it.distance }.take(limit)
+    }
+
+    /** Groups open cells of one tile into blobs and keeps their centres. */
+    private fun poolClusters(
+        rgba: ByteArray,
+        originX: Int,
+        originZ: Int,
+        y: Int,
+        centerX: Int,
+        centerZ: Int,
+    ): List<FinderHit> {
+        val open = BooleanArray(TILE_PIXELS * TILE_PIXELS)
+        for (index in 0 until TILE_PIXELS * TILE_PIXELS) {
+            val r = rgba[index * 4].toInt() and 0xFF
+            val g = rgba[index * 4 + 1].toInt() and 0xFF
+            val b = rgba[index * 4 + 2].toInt() and 0xFF
+            open[index] = r == CAVE_R && g == CAVE_G && b == CAVE_B
+        }
+        val seen = BooleanArray(open.size)
+        val out = mutableListOf<FinderHit>()
+        val queue = ArrayDeque<Int>()
+        for (start in open.indices) {
+            if (!open[start] || seen[start]) continue
+            seen[start] = true
+            queue.addLast(start)
+            var sumX = 0L
+            var sumZ = 0L
+            var count = 0
+            var minX = Int.MAX_VALUE
+            var maxX = Int.MIN_VALUE
+            var minZ = Int.MAX_VALUE
+            var maxZ = Int.MIN_VALUE
+            while (queue.isNotEmpty()) {
+                val cell = queue.removeFirst()
+                val cx = cell % TILE_PIXELS
+                val cz = cell / TILE_PIXELS
+                val blockX = originX + cx * TILE_SCALE
+                val blockZ = originZ + cz * TILE_SCALE
+                sumX += blockX
+                sumZ += blockZ
+                count++
+                if (blockX < minX) minX = blockX
+                if (blockX > maxX) maxX = blockX
+                if (blockZ < minZ) minZ = blockZ
+                if (blockZ > maxZ) maxZ = blockZ
+                for (neighbour in 0 until 4) {
+                    val nx = cx + if (neighbour == 0) 1 else if (neighbour == 1) -1 else 0
+                    val nz = cz + if (neighbour == 2) 1 else if (neighbour == 3) -1 else 0
+                    if (nx < 0 || nz < 0 || nx >= TILE_PIXELS || nz >= TILE_PIXELS) continue
+                    val next = nz * TILE_PIXELS + nx
+                    if (!open[next] || seen[next]) continue
+                    seen[next] = true
+                    queue.addLast(next)
+                }
+            }
+            // A single 4-block cell is a crack, not a pool worth walking to.
+            if (count < MIN_POOL_CELLS) continue
+            val cx = (sumX / count).toInt()
+            val cz = (sumZ / count).toInt()
+            out += FinderHit(
+                title = "岩浆湖",
+                x = cx,
+                z = cz,
+                distance = distance(cx, cz, centerX, centerZ),
+                detail = "Y $y · 约 ${count * TILE_SCALE * TILE_SCALE} 格 · " +
+                    "范围 ${maxX - minX + TILE_SCALE}×${maxZ - minZ + TILE_SCALE}",
+                dimension = Dimension.OVERWORLD,
+            )
+        }
+        return out
+    }
+
     suspend fun searchStrongholds(
         seed: Long,
         version: McVersion,
@@ -284,7 +472,154 @@ class FinderEngine(private val engine: SeedEngine) {
         )
     }
 
+    /**
+     * Chunkbase's "Ore Vein" app: find the large iron/copper veins that the
+     * 1.18 world generator scatters. A vein is a noise-driven region that spans
+     * several chunks, so chunks that contain vein blocks are joined into one
+     * cluster and reported at its centroid.
+     */
+    fun searchOreVeins(
+        seed: Long,
+        version: McVersion,
+        kind: OreKind,
+        centerX: Int,
+        centerZ: Int,
+        radius: Int,
+        limit: Int,
+    ): List<FinderHit> {
+        if (version < McVersion.MC_1_18_2) {
+            throw IllegalStateException("矿脉需要 1.18 及以上")
+        }
+        val capped = radius.coerceIn(128, 768)
+        val chunkRadius = capped / 16
+        val cx = centerX / 16
+        val cz = centerZ / 16
+        val hits = ArrayList<Pair<Int, Int>>()
+        for (dz in -chunkRadius..chunkRadius) {
+            for (dx in -chunkRadius..chunkRadius) {
+                if (dx * dx + dz * dz > chunkRadius * chunkRadius) continue
+                val blocks = engine.oreScanBlocking(
+                    seed = seed,
+                    version = version,
+                    dimension = Dimension.OVERWORLD,
+                    chunkX = cx + dx,
+                    chunkZ = cz + dz,
+                    kind = kind,
+                    maxBlocks = 64,
+                )
+                if (blocks.isNotEmpty()) hits += (cx + dx) to (cz + dz)
+            }
+        }
+        return clusterChunks(hits)
+            .map { cluster ->
+                val bx = cluster.sumOf { it.first } * 16 / cluster.size + 8
+                val bz = cluster.sumOf { it.second } * 16 / cluster.size + 8
+                FinderHit(
+                    title = "${kind.label} · ${cluster.size} 区块",
+                    x = bx,
+                    z = bz,
+                    distance = distance(bx, bz, centerX, centerZ),
+                    detail = "跨度约 ${cluster.size * 16} 方块",
+                )
+            }
+            .sortedBy { it.distance }
+            .take(limit)
+    }
+
+    /** Joins horizontal neighbours so one vein is reported once. */
+    private fun clusterChunks(chunks: List<Pair<Int, Int>>): List<List<Pair<Int, Int>>> {
+        val remaining = chunks.toMutableSet()
+        val clusters = ArrayList<List<Pair<Int, Int>>>()
+        while (remaining.isNotEmpty()) {
+            val start = remaining.first()
+            remaining.remove(start)
+            val group = ArrayList<Pair<Int, Int>>()
+            val queue = ArrayDeque<Pair<Int, Int>>()
+            queue += start
+            while (queue.isNotEmpty()) {
+                val current = queue.removeFirst()
+                group += current
+                for (dx in -1..1) {
+                    for (dz in -1..1) {
+                        val neighbour = (current.first + dx) to (current.second + dz)
+                        if (remaining.remove(neighbour)) queue += neighbour
+                    }
+                }
+            }
+            clusters += group
+        }
+        return clusters
+    }
+
+    /**
+     * Finds dungeon rooms (see [SeedEngine.dungeonsBlocking]). Each one is an
+     * exact decoration-feature placement, so the radius only bounds the area
+     * that gets scanned; the cost grows with area, not with result count.
+     */
+    suspend fun searchDungeons(
+        seed: Long,
+        version: McVersion,
+        centerX: Int,
+        centerZ: Int,
+        radius: Int,
+        limit: Int,
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
+    ): List<FinderHit> = withContext(Dispatchers.Default) {
+        if (version.ordinal < McVersion.MC_1_18_2.ordinal) {
+            throw IllegalStateException("地牢查找需要 1.18 及以上版本")
+        }
+        val span = radius.coerceIn(DUNGEON_MIN_SPAN, DUNGEON_MAX_SPAN)
+        val steps = DUNGEON_STEPS
+        val hits = mutableListOf<FinderHit>()
+        val seen = HashSet<Long>()
+        var done = 0
+        for (step in 1..steps) {
+            currentCoroutineContext().ensureActive()
+            val r = span / steps * step
+            val found = engine.dungeonsBlocking(
+                seed = seed,
+                version = version,
+                minX = centerX - r,
+                minZ = centerZ - r,
+                maxX = centerX + r,
+                maxZ = centerZ + r,
+                maxCount = DUNGEON_CAP,
+            )
+            for (d in found) {
+                val key = (d.x.toLong() shl 40) or (d.y.toLong() shl 20) or (d.z.toLong() and 0xFFFFF)
+                if (!seen.add(key)) continue
+                val dx = (d.x - centerX).toLong()
+                val dz = (d.z - centerZ).toLong()
+                hits += FinderHit(
+                    title = d.kind.label,
+                    x = d.x,
+                    z = d.z,
+                    distance = sqrt((dx * dx + dz * dz).toDouble()).toInt(),
+                    detail = "Y ${d.y} · ${d.kind.label}刷怪笼",
+                )
+            }
+            done++
+            onProgress(done, steps)
+            if (hits.size >= limit) break
+        }
+        hits.sortedBy { it.distance }.take(limit)
+    }
+
     companion object {
+    private const val DUNGEON_MIN_SPAN = 128
+    private const val DUNGEON_MAX_SPAN = 1024
+    private const val DUNGEON_STEPS = 4
+    private const val DUNGEON_CAP = 512
+        private const val TILE_BLOCKS = 256
+        private const val TILE_PIXELS = 64
+        private const val TILE_SCALE = 4
+        private const val LAYER_CAVE = 2
+        private const val LAVA_MAX_SPAN = 1024
+        private const val MIN_POOL_CELLS = 6
+        private const val CAVE_R = 68
+        private const val CAVE_G = 170
+        private const val CAVE_B = 214
+
         /**
          * Vanilla structure spacing in chunks. Used to bound the search area:
          * one-chunk structures such as geodes would otherwise scan millions of

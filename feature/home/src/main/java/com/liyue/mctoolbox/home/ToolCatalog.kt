@@ -20,6 +20,7 @@ data class ToolEntry(
 object ToolCatalog {
     const val SEED_MAP = "seed_map"
     const val STRUCTURE_FINDER = "structure_finder"
+    const val BEDROCK_LIBRARY = "bedrock_library"
 
     val all: List<ToolEntry> = listOf(
         ToolEntry(
@@ -31,9 +32,16 @@ object ToolCatalog {
         ),
         ToolEntry(
             id = STRUCTURE_FINDER,
-            title = "结构查找",
-            subtitle = "找最近的村庄、要塞、群系与史莱姆区块",
+            title = "查找器",
+            subtitle = "Chunkbase 全套：36 个查找器一次装齐",
             icon = Icons.Filled.Search,
+            available = true,
+        ),
+        ToolEntry(
+            id = BEDROCK_LIBRARY,
+            title = "基岩版版本库",
+            subtitle = "全部基岩版本与网盘下载，直通种子地图",
+            icon = Icons.Filled.List,
             available = true,
         ),
         ToolEntry(

@@ -13,4 +13,6 @@ data class MapTarget(
     val dimension: Dimension,
     val centerX: Double,
     val centerZ: Double,
+    /** Layers to switch on as soon as the map opens (Cave / Ravine apps). */
+    val overlay: MapOverlay = MapOverlay.NONE,
 )

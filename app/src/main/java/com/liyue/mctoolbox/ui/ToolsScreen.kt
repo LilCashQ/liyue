@@ -95,7 +95,7 @@ fun ToolsScreen(
             }
             item {
                 Text(
-                    text = "更多工具开发中 · v0.12.0",
+                    text = "更多工具开发中",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 20.dp),

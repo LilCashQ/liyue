@@ -373,13 +373,20 @@ static void axolotl_shade_height_map(
                 if (band != west / 16 || band != north / 16) factor = 0.15f;
             }
             if (factor == 1.0f) {
-                const int slope = 3 * here - west - north - northwest;
-                if (slope != 0) {
-                    const float delta = axolotl_clamp((float)slope / 16.0f, -0.3f, 0.3f);
-                    factor = 1.0f + delta + (delta > 0.0f ? 0.1f : -0.1f);
-                    if (factor < 0.72f) factor = 0.72f;
+                // Relief as a hillshade lit from the north-west: the drop over
+                // one height cell decides the brightness, scaled back to a
+                // per-4-block gradient so the look does not change with the
+                // grid spacing we happen to sample at.
+                const int west_drop = west - here;
+                const int north_drop = north - here;
+                if (west_drop != 0 || north_drop != 0) {
+                    const float scale = 0.4f / (float)(denominator > 0 ? denominator : 4);
+                    const float delta = axolotl_clamp(
+                        (float)(west_drop + north_drop) * scale, -0.30f, 0.30f);
+                    factor = 1.0f + delta;
                 }
             }
+            (void)northwest;
             uint8_t *pixel = rgb + index * 3;
             const int strongest = pixel[0] > pixel[1]
                 ? (pixel[0] > pixel[2] ? pixel[0] : pixel[2])
@@ -421,6 +428,100 @@ static int axolotl_fill_sparse_height_grid(
             }
         }
     }
+    return 0;
+}
+
+/* Fills a height grid anchored to the world lattice: sample i sits at block
+ * (origin_x + i*cell). Anchoring to multiples of `cell` keeps the shading
+ * identical between neighbouring tiles, so tiled maps have no seams. */
+static int axolotl_fill_world_height_grid(
+    float *heights,
+    const Generator *generator,
+    const SurfaceNoise *surface_noise,
+    int64_t origin_x,
+    int64_t origin_z,
+    int cell,
+    int grid_width,
+    int grid_height
+) {
+    static const float scratch[1] = {0.0f};
+    (void)scratch;
+    for (int row = 0; row < grid_height; row++) {
+        for (int column = 0; column < grid_width; column++) {
+            const int64_t block_x = origin_x + (int64_t)column * cell;
+            const int64_t block_z = origin_z + (int64_t)row * cell;
+            float value = 0.0f;
+            if (axolotl_map_approx_height(
+                    &value, generator, surface_noise,
+                    (int)(block_x >> 2), (int)(block_z >> 2), 1, 1, 0) != 0) {
+                return -1;
+            }
+            heights[(size_t)row * (size_t)grid_width + (size_t)column] = value;
+        }
+    }
+    return 0;
+}
+
+/* Renders biome colours and then shades them from a world-aligned height grid.
+ * `height_cell` is the spacing of the height samples in blocks; pick something
+ * that divides the tile span so tiles line up. */
+int axolotl_seed_map_render_shaded(
+    int64_t seed,
+    int minecraft_version,
+    int32_t generator_flags,
+    int32_t dimension,
+    int32_t x,
+    int32_t z,
+    int32_t scale,
+    int32_t width,
+    int32_t height,
+    int32_t elevation,
+    int32_t contours,
+    const uint8_t *highlight_mask,
+    uint8_t *rgb,
+    size_t rgb_len,
+    int32_t height_cell
+) {
+    int rc = axolotl_seed_map_render(
+        seed, minecraft_version, generator_flags, dimension,
+        x, z, scale, width, height, elevation, 0, 0,
+        highlight_mask, rgb, rgb_len);
+    if (rc != 0) return rc;
+    if (dimension != DIM_OVERWORLD || height_cell <= 0) return 0;
+
+    Generator generator;
+    setupGenerator(&generator, minecraft_version, generator_flags);
+    applySeed(&generator, dimension, seed);
+    SurfaceNoise surface_noise;
+    initSurfaceNoise(&surface_noise, DIM_OVERWORLD, seed);
+
+    const int64_t min_block_x = (int64_t)x * scale;
+    const int64_t min_block_z = (int64_t)z * scale;
+    const int64_t origin_x = (min_block_x >= 0
+        ? min_block_x / height_cell
+        : -((-min_block_x + height_cell - 1) / height_cell)) * height_cell;
+    const int64_t origin_z = (min_block_z >= 0
+        ? min_block_z / height_cell
+        : -((-min_block_z + height_cell - 1) / height_cell)) * height_cell;
+    const int grid_width = (int)(((int64_t)width * scale) / height_cell) + 3;
+    const int grid_height = (int)(((int64_t)height * scale) / height_cell) + 3;
+    if (grid_width <= 0 || grid_height <= 0) return 0;
+    if (grid_width > 4096 || grid_height > 4096) return 0;
+
+    float *heights = malloc((size_t)grid_width * (size_t)grid_height * sizeof(float));
+    if (!heights) return 0;
+    const int filled = axolotl_fill_world_height_grid(
+        heights, &generator, &surface_noise,
+        origin_x, origin_z, height_cell, grid_width, grid_height);
+    if (filled == 0) {
+        const int origin_column = (int)((min_block_x - origin_x) / height_cell);
+        const int origin_row = (int)((min_block_z - origin_z) / height_cell);
+        axolotl_shade_height_map(
+            rgb, width, height, contours,
+            heights, grid_width, grid_height,
+            origin_column, origin_row, scale, height_cell);
+    }
+    free(heights);
     return 0;
 }
 

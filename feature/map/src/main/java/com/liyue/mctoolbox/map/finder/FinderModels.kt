@@ -4,6 +4,7 @@ import com.liyue.mctoolbox.map.GameVersion
 import com.liyue.mctoolbox.map.GameVersions
 import com.liyue.mctoolbox.map.StructureType
 import com.liyue.mctoolbox.seedgen.Dimension
+import com.liyue.mctoolbox.seedgen.OreKind
 import com.liyue.mctoolbox.seedgen.McVersion
 
 /** One tab of the finder, mirroring the Chunkbase "apps" split. */
@@ -13,6 +14,10 @@ enum class FinderTab(val label: String) {
     STRONGHOLD("要塞"),
     SLIME("史莱姆区块"),
     SPAWN("出生点"),
+    ORE_VEIN("矿脉"),
+    GOLDEN_APPLE("宝箱战利品"),
+    LAVA_POOL("岩浆湖"),
+    DUNGEON("地牢"),
 }
 
 /** A single search result: always a block position plus context. */
@@ -32,6 +37,7 @@ data class FinderUiState(
     val seedText: String = "0",
     val version: GameVersion = GameVersions.default,
     val structure: StructureType = StructureType.VILLAGE,
+    val veinKind: OreKind = OreKind.IRON_VEIN,
     val biome: BiomeOption? = null,
     val biomeDimension: Dimension = Dimension.OVERWORLD,
     val biomeOptions: List<BiomeOption> = emptyList(),
@@ -50,7 +56,11 @@ data class FinderUiState(
     val radius: Int get() = (radiusText.trim().toIntOrNull() ?: 2048).coerceIn(128, 16384)
     val limit: Int get() = (limitText.trim().toIntOrNull() ?: 20).coerceIn(1, 100)
     val dimension: Dimension
-        get() = if (tab == FinderTab.BIOME) biomeDimension else structure.dimension
+        get() = when (tab) {
+            FinderTab.BIOME -> biomeDimension
+            FinderTab.ORE_VEIN, FinderTab.LAVA_POOL, FinderTab.DUNGEON -> Dimension.OVERWORLD
+            else -> structure.dimension
+        }
 }
 
 /**

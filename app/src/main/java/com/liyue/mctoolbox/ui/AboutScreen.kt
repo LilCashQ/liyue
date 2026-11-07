@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,11 +28,13 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,8 +49,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.liyue.mctoolbox.auth.AuthUser
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+
+
+private data class AboutDialog(
+    val title: String,
+    val body: String,
+    val imageRes: Int? = null,
+    val actionLabel: String? = null,
+    val actionUrl: String? = null,
+)
 
 private data class AboutRow(
     val title: String,
@@ -56,7 +72,7 @@ private data class AboutRow(
 )
 
 private val supportRows = listOf(
-    AboutRow("捐赠支持", "用于后续开发与维护", Icons.Filled.Favorite),
+    AboutRow("捐赠支持", "攒一台服务器，让地图算在云上", Icons.Filled.Favorite),
     AboutRow("开源致谢", "cubiomes 等开源项目", Icons.Filled.Star),
 )
 
@@ -67,7 +83,7 @@ private val policyRows = listOf(
 )
 
 private val otherRows = listOf(
-    AboutRow("检查更新", "当前版本 v0.12.0（构建 2026-11-01）", Icons.Filled.Info),
+    AboutRow("检查 GitHub 最新版本", "对比仓库发布，看看有没有新版", Icons.Filled.Info),
     AboutRow("反馈", "功能建议或问题反馈", Icons.Filled.Email),
     AboutRow("帮助", "常见问题与使用说明", Icons.Filled.Info),
     AboutRow("分享应用", "把里悦分享给朋友", Icons.Filled.Share),
@@ -82,7 +98,14 @@ fun AboutScreen(
     onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
-    var dialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var dialog by remember { mutableStateOf<AboutDialog?>(null) }
+    var checking by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val currentVersion = remember(context) {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull() ?: "?"
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -94,10 +117,26 @@ fun AboutScreen(
         item { AccountCard(user, onLogin = onLogin, onLogout = onLogout) }
 
         item { SectionLabel("支持") }
-        items(supportRows) { row -> RowCard(row) { dialog = row.title to row.subtitle } }
+        items(supportRows) { row ->
+            RowCard(row) {
+                dialog = if (row.title == "捐赠支持") {
+                    AboutDialog(
+                        title = "捐赠支持",
+                        body = "谢谢每一份打赏。这些钱会一点点攒起来买服务器——" +
+                            "等服务器上线，种子地图和查找器的群系、结构就能在云端预先算好，" +
+                            "打开即用、换手机也不用重新渲染。",
+                        imageRes = com.liyue.mctoolbox.R.drawable.reward_qr,
+                    )
+                } else {
+                    AboutDialog(row.title, row.subtitle)
+                }
+            }
+        }
 
         item { SectionLabel("政策") }
-        items(policyRows) { row -> RowCard(row) { dialog = row.title to policyText(row.title) } }
+        items(policyRows) { row ->
+            RowCard(row) { dialog = AboutDialog(row.title, policyText(row.title)) }
+        }
 
         item { SectionLabel("其他") }
         items(otherRows) { row ->
@@ -113,21 +152,63 @@ fun AboutScreen(
                         }
                         context.startActivity(android.content.Intent.createChooser(intent, "分享里悦"))
                     }
-                    "检查更新" -> dialog = "检查更新" to "当前已是最新版本 v0.12.0。"
-                    "关于" -> dialog = "关于里悦" to
-                        "里悦是一个 Minecraft 工具箱：种子地图使用 cubiomes 计算真实群系与结构，模组中心将在后续版本接入。"
-                    else -> dialog = row.title to "该功能正在开发中。"
+                    "检查 GitHub 最新版本" -> {
+                        if (!checking) {
+                            checking = true
+                            dialog = AboutDialog("检查更新", "正在查询 GitHub…")
+                            scope.launch {
+                                val result = githubLatest(currentVersion)
+                                checking = false
+                                dialog = result
+                            }
+                        }
+                    }
+                    "关于" -> dialog = AboutDialog(
+                        title = "关于里悦",
+                        body = "里悦是一个 Minecraft 工具箱：种子地图使用 cubiomes 计算真实群系与结构，" +
+                            "内置 36 个查找器与基岩版版本库。当前版本 v$currentVersion。",
+                        actionLabel = "打开仓库",
+                        actionUrl = "https://github.com/LilCashQ/liyue",
+                    )
+                    else -> dialog = AboutDialog(row.title, "该功能正在开发中。")
                 }
             }
         }
     }
 
-    dialog?.let { (title, body) ->
+    dialog?.let { current ->
         AlertDialog(
             onDismissRequest = { dialog = null },
-            title = { Text(title) },
-            text = { Text(body) },
+            title = { Text(current.title) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    current.imageRes?.let { res ->
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(res),
+                            contentDescription = "赞赏码",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 320.dp),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        )
+                    }
+                    Text(current.body)
+                }
+            },
             confirmButton = {
+                if (current.actionUrl != null) {
+                    TextButton(onClick = {
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(current.actionUrl),
+                                )
+                            )
+                        }
+                        dialog = null
+                    }) { Text(current.actionLabel ?: "打开") }
+                }
                 TextButton(onClick = { dialog = null }) { Text("知道了") }
             },
         )
@@ -269,4 +350,65 @@ private fun policyText(title: String): String = when (title) {
     "用户协议" -> "里悦是第三方 Minecraft 工具，与 Mojang、Microsoft 无隶属关系。请勿使用本应用从事侵权或违反游戏服务条款的行为。"
     "权限说明" -> "网络：后续模组中心需要访问公开 API；存储：导出地图截图与下载文件时必须由你选择目录。应用不申请全盘存储权限。"
     else -> "该功能正在开发中。"
+}
+
+
+private const val REPO_URL = "https://api.github.com/repos/LilCashQ/liyue"
+
+/** Asks GitHub for the newest published release and compares it with what is installed. */
+private suspend fun githubLatest(currentVersion: String): AboutDialog = withContext(Dispatchers.IO) {
+    val tag = runCatching {
+        val json = JSONObject(httpGet("$REPO_URL/releases/latest"))
+        json.optString("tag_name").trim().takeIf { it.isNotEmpty() }
+    }.getOrNull()
+
+    when {
+        tag == null -> AboutDialog(
+            title = "检查更新",
+            body = "GitHub 上还没有发布版本。当前版本 v$currentVersion，仓库一直在更新。",
+            actionLabel = "打开仓库",
+            actionUrl = "https://github.com/LilCashQ/liyue",
+        )
+        compareVersions(tag.trimStart('v'), currentVersion) > 0 -> AboutDialog(
+            title = "发现新版本",
+            body = "GitHub 最新发布 $tag，你当前是 v$currentVersion。",
+            actionLabel = "去下载",
+            actionUrl = "https://github.com/LilCashQ/liyue/releases/latest",
+        )
+        else -> AboutDialog(
+            title = "已是最新",
+            body = "GitHub 最新发布 $tag，当前 v$currentVersion 已是最新。",
+            actionLabel = "打开仓库",
+            actionUrl = "https://github.com/LilCashQ/liyue",
+        )
+    }
+}
+
+private fun httpGet(url: String): String {
+    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+        requestMethod = "GET"
+        connectTimeout = 8000
+        readTimeout = 8000
+        setRequestProperty("Accept", "application/vnd.github+json")
+        setRequestProperty("User-Agent", "LiYue-Android")
+    }
+    try {
+        if (connection.responseCode !in 200..299) {
+            error("HTTP ${connection.responseCode}")
+        }
+        return connection.inputStream.bufferedReader().use { it.readText() }
+    } finally {
+        connection.disconnect()
+    }
+}
+
+/** 0.26.0 is newer than 0.25.0; missing segments count as zero. */
+private fun compareVersions(left: String, right: String): Int {
+    val a = left.split('.').map { it.toIntOrNull() ?: 0 }
+    val b = right.split('.').map { it.toIntOrNull() ?: 0 }
+    for (index in 0 until maxOf(a.size, b.size)) {
+        val diff = (a.getOrElse(index) { 0 }) - (b.getOrElse(index) { 0 })
+        if (diff != 0) return diff
+    }
+    return 0
 }

@@ -15,7 +15,7 @@ local.properties
 __pycache__/
 *.pyc
 
-# 发布签名密钥不入库
+# signing material stays local
 keystore/
 *.jks
 *.keystore

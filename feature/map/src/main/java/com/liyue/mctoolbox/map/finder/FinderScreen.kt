@@ -53,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.liyue.mctoolbox.map.GameVersion
 import com.liyue.mctoolbox.map.GameVersions
+import com.liyue.mctoolbox.map.groupLabel
 import com.liyue.mctoolbox.map.MapTarget
 import com.liyue.mctoolbox.map.StructureType
 import com.liyue.mctoolbox.seedgen.Dimension
@@ -62,6 +63,7 @@ import com.liyue.mctoolbox.seedgen.Dimension
 fun FinderScreen(
     onBack: () -> Unit,
     onOpenMap: (MapTarget) -> Unit = {},
+    preset: ChunkbaseApp? = null,
     viewModel: FinderViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -70,10 +72,23 @@ fun FinderScreen(
         viewModel.mapRequests.collect { target -> onOpenMap(target) }
     }
 
+    // Opened from the seed map: adopt its seed and version instead of retyping.
+    LaunchedEffect(Unit) {
+        val (seed, versionLabel) = com.liyue.mctoolbox.map.FinderLaunch.take()
+        seed?.let(viewModel::onSeedTextChange)
+        versionLabel?.let { label ->
+            com.liyue.mctoolbox.map.GameVersions.find(label)?.let(viewModel::onVersionChange)
+        }
+    }
+
+    LaunchedEffect(preset?.id) {
+        preset?.let(viewModel::applyPreset)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("结构查找") },
+                title = { Text(preset?.title ?: "查找器") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -102,6 +117,7 @@ fun FinderScreen(
                 FinderQueryCard(
                     state = state,
                     onStructureChange = viewModel::onStructureChange,
+                    onVeinKindChange = viewModel::onVeinKindChange,
                     onBiomeDimensionChange = viewModel::onBiomeDimensionChange,
                     onBiomeChange = viewModel::onBiomeChange,
                     onCenterXChange = viewModel::onCenterXChange,
@@ -190,6 +206,7 @@ private fun FinderSeedCard(
                     optionLabel = { it.label },
                     onSelect = onVersionChange,
                     modifier = Modifier.width(132.dp),
+                    groupOf = { it.edition.groupLabel },
                 )
             }
             Spacer(Modifier.height(10.dp))
@@ -210,6 +227,7 @@ private fun FinderSeedCard(
 private fun FinderQueryCard(
     state: FinderUiState,
     onStructureChange: (StructureType) -> Unit,
+    onVeinKindChange: (com.liyue.mctoolbox.seedgen.OreKind) -> Unit,
     onBiomeDimensionChange: (Dimension) -> Unit,
     onBiomeChange: (BiomeOption) -> Unit,
     onCenterXChange: (String) -> Unit,
@@ -285,6 +303,66 @@ private fun FinderQueryCard(
                     Text(
                         text = "搜索中心点周围的史莱姆区块（算法与版本无关，y<40 才会刷史莱姆）。",
                         style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                FinderTab.ORE_VEIN -> {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            com.liyue.mctoolbox.seedgen.OreKind.IRON_VEIN,
+                            com.liyue.mctoolbox.seedgen.OreKind.COPPER_VEIN,
+                        ).forEach { kind ->
+                            FilterChip(
+                                selected = state.veinKind == kind,
+                                onClick = { onVeinKindChange(kind) },
+                                label = { Text(kind.label) },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "1.18 起的大型矿脉，按区块连通聚成一处，需要 1.18 及以上版本。" +
+                            "搜索半径上限 768 方块。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+
+                FinderTab.LAVA_POOL -> {
+                    Text(
+                        text = "按洞穴雕刻结果找地下的岩浆湖：1.18 起扫描 Y=-54 以下被岩浆填满的空腔，" +
+                            "更早的版本扫 Y=10。半径每翻一倍时间翻四倍，512 大概 2 秒。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+
+                FinderTab.DUNGEON -> {
+                    Text(
+                        text = "地牢是区块装饰阶段的刷怪笼房间，位置由装饰随机数逐次算出并用地形做" +
+                            "实心/空气校验，所以给出的是精确坐标。每个区块 14 次尝试" +
+                            "（地表下 10 次 Y 0-319，深层 4 次 Y -58 到 -1）。" +
+                            "半径越大扫的区块越多，1024 大约 10 秒。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+
+                FinderTab.GOLDEN_APPLE -> {
+                    val supported = StructureSupport.forVersion(state.version.engine)
+                    PickerField(
+                        label = "结构类型",
+                        selected = state.structure.label,
+                        options = supported,
+                        optionLabel = { it.label },
+                        onSelect = onStructureChange,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "逐个结构滚算宝箱战利品，只列出真的含金苹果的箱子（Java 版）。" +
+                            "沙漠神殿很稀有，种子 0 在 2048 内一个都没有，建议半径写 4096。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
                     )
                 }
 
@@ -396,6 +474,7 @@ private fun <T> PickerField(
     optionLabel: (T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    groupOf: ((T) -> String?)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
@@ -424,7 +503,23 @@ private fun <T> PickerField(
             onDismissRequest = { expanded = false },
             modifier = Modifier.heightIn(max = 420.dp),
         ) {
+            var lastGroup: String? = null
             options.forEach { option ->
+                val group = groupOf?.invoke(option)
+                if (group != null && group != lastGroup) {
+                    lastGroup = group
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = group,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        onClick = {},
+                        enabled = false,
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text(optionLabel(option)) },
                     onClick = {
