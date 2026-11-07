@@ -83,7 +83,12 @@ typedef struct
 
 /* Real 1:1 biome lookup. getBiomeAt() needs a fully wired generator and falls
  * back to a constant biome here, so sample the climate noise directly. */
-static BiomeNoise g_bn;
+/* Per-thread climate generator: the search runs on several threads at once,
+ * and initBiomeNoise() rebuilds internal buffers that must not be shared. */
+static _Thread_local BiomeNoise g_bn;
+static _Thread_local int g_bn_mc = -1;
+static _Thread_local uint64_t g_bn_seed = 0;
+static _Thread_local int g_bn_ready = 0;
 
 static int flw_biome(int x, int y, int z)
 {
@@ -109,8 +114,10 @@ static void climate_eh(const BiomeNoise *bn, double qx, double qz, float *out_e,
     *out_h = (float) sampleDoublePerlin(&bn->climate[NP_HUMIDITY], px, 0.0, pz);
 }
 
+/* Returns 0 on failure, 1 on success and -2 when the requested rectangle is
+ * too large for the requested window size to stay meaningful. */
 static int build_field(ClimateField *field, uint64_t seed, int mc, int min_x, int min_z,
-                       int max_x, int max_z)
+                       int max_x, int max_z, int max_step)
 {
     BiomeNoise bn;
     int i, j;
@@ -123,8 +130,10 @@ static int build_field(ClimateField *field, uint64_t seed, int mc, int min_x, in
     {
         const int64_t gw = (int64_t) (max_x - min_x) / step + 1;
         const int64_t gh = (int64_t) (max_z - min_z) / step + 1;
-        if (gw * gh <= 400000 || step >= 256)
+        if (gw * gh <= 1200000)
             break;
+        if (step >= max_step)
+            return -2;
         step *= 2;
     }
     field->step = step;
@@ -544,7 +553,7 @@ static void classify_window(const Generator *overworld, int wx, int wz, int side
 
 int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x, int max_z,
                         int long_side, int short_side, int square_only, int require_pale,
-                        int require_both_bonus, int require_basalt, int orientation,
+                        int require_birch, int require_cherry, int require_basalt, int orientation,
                         int flower_margin, int fast_mode, int max_rows, int32_t *out,
                         int capacity)
 {
@@ -572,6 +581,10 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
     if (long_side < 64 || short_side < 64)
         return 0;
     if (long_side > 1024 || short_side > 1024)
+        return 0;
+    if (max_x - min_x < 1024 || max_z - min_z < 1024)
+        return 0;
+    if (max_x - min_x > 2000000 || max_z - min_z > 2000000)
         return 0;
 
     /* orientation: 0 = either, 1 = long side along X, 2 = long side along Z. */
@@ -605,15 +618,28 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
         flower_margin = 0;
     frame_step = fast_mode ? 32 : 8;
 
-    initBiomeNoise(&g_bn, mc);
-    setBiomeSeed(&g_bn, seed, 0);
+    if (!g_bn_ready || g_bn_mc != mc || g_bn_seed != seed)
+    {
+        initBiomeNoise(&g_bn, mc);
+        setBiomeSeed(&g_bn, seed, 0);
+        g_bn_mc = mc;
+        g_bn_seed = seed;
+        g_bn_ready = 1;
+    }
 
     memset(&field, 0, sizeof(field));
-    if (!build_field(&field, seed, mc, min_x, min_z, max_x, max_z))
     {
-        free(field.e);
-        free(field.h);
-        return 0;
+        const int side_min = long_side < short_side ? long_side : short_side;
+        const int max_step = side_min / 2 > 16 ? side_min / 2 : 16;
+        const int built = build_field(&field, seed, mc, min_x, min_z, max_x, max_z, max_step);
+        if (built == -2)
+            return -2;
+        if (!built)
+        {
+            free(field.e);
+            free(field.h);
+            return 0;
+        }
     }
     sum_swamp = integral_image(&field, 0);
     sum_flower = integral_image(&field, 1);
@@ -786,9 +812,12 @@ int liyue_flower_search(int64_t seed64, int mc, int min_x, int min_z, int max_x,
             bonus |= FLW_BONUS_WILDFLOWERS;
         if (fine.cherry_cells > 0)
             bonus |= FLW_BONUS_PINK_PETALS;
-        if (require_both_bonus &&
-            (bonus & (FLW_BONUS_WILDFLOWERS | FLW_BONUS_PINK_PETALS)) !=
-                (FLW_BONUS_WILDFLOWERS | FLW_BONUS_PINK_PETALS))
+        /* A full flower farm next to both a birch forest and a cherry grove is
+         * what makes the "all flowers in one window" setup, so those can be
+         * demanded as hard conditions too. */
+        if (require_birch && fine.birch_cells + fine.old_cells == 0)
+            continue;
+        if (require_cherry && fine.cherry_cells == 0)
             continue;
 
         rank = nether_rank(&nether, wx, wz, side_x, side_z);

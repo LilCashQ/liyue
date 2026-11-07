@@ -56,7 +56,7 @@ object ToolCatalog {
         ),
         ToolEntry(
             id = FLOWER_FARM,
-            title = "全花农场",
+            title = "全花种农场",
             subtitle = "花林 + 沼泽 + 苍白花园挤在一个窗口里",
             icon = Icons.Filled.Star,
             available = true,

@@ -13,7 +13,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.liyue.mctoolbox.seedgen.Dimension
@@ -48,6 +55,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class FlowerFarmState(
     val seedText: String = "0",
@@ -63,10 +71,12 @@ private data class FlowerFarmState(
     val squareMode: Boolean = false,
     val squareSide: String = "1000001",
     val fastMode: Boolean = true,
-    val threads: String = "8",
+    val threads: String = Runtime.getRuntime().availableProcessors()
+        .coerceIn(1, 8).toString(),
     val orientation: Int = 0,
     val flowerMargin: String = "0",
-    val requireBothBonus: Boolean = false,
+    val requireBirch: Boolean = true,
+    val requireCherry: Boolean = true,
     val requireBasalt: Boolean = false,
     val requirePale: Boolean = true,
     val running: Boolean = false,
@@ -94,6 +104,14 @@ fun FlowerFarmScreen(
     var job by remember { mutableStateOf<Job?>(null) }
     var pausedFlag by remember { mutableStateOf(false) }
     var cancelled by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var history by remember { mutableStateOf<List<FlowerHistoryEntry>>(emptyList()) }
+    var showHistory by remember { mutableStateOf(false) }
+    val historySheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    LaunchedEffect(Unit) {
+        history = withContext(Dispatchers.IO) { FlowerHistoryStore.load(context) }
+    }
 
     fun bounds(snapshot: FlowerFarmState): IntArray {
         if (snapshot.squareMode) {
@@ -118,91 +136,145 @@ fun FlowerFarmScreen(
         } else {
             longSide
         }
-        val threads = snapshot.threads.toIntOr(8).coerceIn(1, 32)
+        val threads = snapshot.threads.toIntOr(4)
+            .coerceIn(1, Runtime.getRuntime().availableProcessors().coerceIn(1, 8))
         val seed = SeedEngine.parseJavaSeed(snapshot.seedText)
         val requirePale = snapshot.requirePale &&
             snapshot.version.engine.ordinal >= McVersion.MC_1_21_4.ordinal
         val margin = snapshot.flowerMargin.toIntOr(0).coerceIn(0, 512)
         val fastMode = snapshot.fastMode
         val orientation = snapshot.orientation
-        val bothBonus = snapshot.requireBothBonus
+        val birch = snapshot.requireBirch
+        val cherry = snapshot.requireCherry
         val basalt = snapshot.requireBasalt
         val version = snapshot.version.engine
 
         pausedFlag = false
         cancelled = false
 
-        // The native search is a blocking call over a rectangle, so the thread
-        // count is spent by splitting the area into horizontal bands and running
-        // them side by side. Pause takes effect between bands.
-        val bandCount = threads.coerceAtMost(((rect[3] - rect[1]) / 4096).coerceAtLeast(1))
-        val bandHeight = ((rect[3] - rect[1]) / bandCount).coerceAtLeast(512)
+        // One native call has to build a climate field over its whole rectangle,
+        // so a big search area is split into square tiles that are then run side
+        // by side with the requested thread count.
+        val sideMin = if (longSide < shortSide) longSide else shortSide
+        val maxStep = (sideMin / 2).coerceAtLeast(16)
+        val tileSide = (maxStep * 1000).coerceAtMost(65536).coerceAtLeast(4096)
+        val tilesX = ((rect[2] - rect[0]) + tileSide - 1) / tileSide
+        val tilesZ = ((rect[3] - rect[1]) + tileSide - 1) / tileSide
+        val tiles = ArrayList<IntArray>(tilesX * tilesZ)
+        for (tz in 0 until tilesZ) {
+            for (tx in 0 until tilesX) {
+                val x0 = rect[0] + tx * tileSide
+                val z0 = rect[1] + tz * tileSide
+                tiles.add(
+                    intArrayOf(
+                        x0, z0,
+                        (x0 + tileSide).coerceAtMost(rect[2]),
+                        (z0 + tileSide).coerceAtMost(rect[3]),
+                    ),
+                )
+            }
+        }
 
         state = snapshot.copy(
             running = true, paused = false, hits = null, error = null,
-            progress = 0, batches = bandCount,
+            progress = 0, batches = tiles.size,
         )
         job = scope.launch {
             val started = System.nanoTime()
             val collected = mutableListOf<SeedEngine.FlowerFarmHit>()
             var failure: String? = null
+            var done = 0
             try {
                 coroutineScope {
-                    val bands = (0 until bandCount).map { index ->
-                        val z0 = rect[1] + index * bandHeight
-                        val z1 = if (index == bandCount - 1) rect[3] else z0 + bandHeight
-                        Triple(z0, z1, index)
-                    }
-                    val results = bands.map { (z0, z1, index) ->
+                    val gate = kotlinx.coroutines.sync.Semaphore(threads)
+                    tiles.forEach { tile ->
                         launch(Dispatchers.Default) {
-                            while (pausedFlag && !cancelled) delay(120)
-                            if (cancelled) return@launch
-                            val found = runCatching {
-                                engine.flowerSearchBlocking(
-                                    seed = seed,
-                                    version = version,
-                                    minX = rect[0],
-                                    minZ = z0,
-                                    maxX = rect[2],
-                                    maxZ = z1,
-                                    longSide = longSide,
-                                    shortSide = shortSide,
-                                    squareOnly = false,
-                                    requirePale = requirePale,
-                                    requireBothBonus = bothBonus,
-                                    requireBasalt = basalt,
-                                    orientation = orientation,
-                                    flowerMargin = margin,
-                                    fastMode = fastMode,
-                                    maxRows = 12,
-                                )
+                            gate.acquire()
+                            try {
+                                while (pausedFlag && !cancelled) delay(120)
+                                if (cancelled) return@launch
+                                val found = runCatching {
+                                    engine.flowerSearchBlocking(
+                                        seed = seed,
+                                        version = version,
+                                        minX = tile[0],
+                                        minZ = tile[1],
+                                        maxX = tile[2],
+                                        maxZ = tile[3],
+                                        longSide = longSide,
+                                        shortSide = shortSide,
+                                        squareOnly = false,
+                                        requirePale = requirePale,
+                                        requireBirch = birch,
+                                        requireCherry = cherry,
+                                        requireBasalt = basalt,
+                                        orientation = orientation,
+                                        flowerMargin = margin,
+                                        fastMode = fastMode,
+                                        maxRows = 8,
+                                    )
+                                }
+                                found.onFailure { if (failure == null) failure = it.message ?: "搜索失败" }
+                                synchronized(collected) {
+                                    found.getOrNull()?.let { collected.addAll(it) }
+                                    done += 1
+                                    state = state.copy(progress = done)
+                                }
+                            } finally {
+                                gate.release()
                             }
-                            found.onFailure { if (failure == null) failure = it.message ?: "搜索失败" }
-                            synchronized(collected) {
-                                found.getOrNull()?.let { collected.addAll(it) }
-                            }
-                            state = state.copy(progress = state.progress + 1)
-                            index
                         }
                     }
-                    results.forEach { it.join() }
                 }
             } finally {
                 val millis = (System.nanoTime() - started) / 1_000_000
-                val merged = collected
+                // Windows found in neighbouring tiles can overlap: keep the ones
+                // that rank best and drop duplicates.
+                val accepted = mutableListOf<SeedEngine.FlowerFarmHit>()
+                collected
                     .sortedWith(
                         compareByDescending<SeedEngine.FlowerFarmHit> { it.bonus.isNotBlank() }
                             .thenByDescending { it.nether == "玄武岩三角洲" }
                             .thenBy { kotlin.math.abs(it.flowerX) + kotlin.math.abs(it.flowerZ) },
                     )
-                    .take(40)
+                    .forEach { hit ->
+                        val clash = accepted.any {
+                            kotlin.math.abs(it.flowerX - hit.flowerX) < (hit.sideX + hit.sideZ) / 4 &&
+                                kotlin.math.abs(it.flowerZ - hit.flowerZ) < (hit.sideX + hit.sideZ) / 4
+                        }
+                        if (!clash && accepted.size < 40) accepted.add(hit)
+                    }
                 state = state.copy(
                     running = false,
                     paused = false,
                     elapsedMs = millis,
-                    hits = merged,
+                    hits = accepted,
                     error = if (cancelled) null else failure,
                 )
+                if (!cancelled) {
+                    val entry = FlowerHistoryEntry(
+                        id = System.currentTimeMillis(),
+                        seedText = snapshot.seedText,
+                        versionLabel = snapshot.version.label,
+                        minX = rect[0],
+                        minZ = rect[1],
+                        maxX = rect[2],
+                        maxZ = rect[3],
+                        longSide = longSide,
+                        shortSide = shortSide,
+                        orientation = orientation,
+                        flowerMargin = margin,
+                        fastMode = fastMode,
+                        requirePale = requirePale,
+                        requireBirch = birch,
+                        requireCherry = cherry,
+                        requireBasalt = basalt,
+                        hits = accepted.size,
+                        elapsedMs = millis,
+                        createdAt = System.currentTimeMillis(),
+                    )
+                    history = withContext(Dispatchers.IO) { FlowerHistoryStore.add(context, entry) }
+                }
             }
         }
     }
@@ -219,10 +291,15 @@ fun FlowerFarmScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("全花农场") },
+                title = { Text("全花种农场") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showHistory = true }) {
+                        Icon(Icons.Filled.DateRange, contentDescription = "搜索历史")
                     }
                 },
             )
@@ -411,9 +488,14 @@ fun FlowerFarmScreen(
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             FilterChip(
-                                selected = state.requireBothBonus,
-                                onClick = { state = state.copy(requireBothBonus = !state.requireBothBonus) },
-                                label = { Text("要野花+樱花") },
+                                selected = state.requireBirch,
+                                onClick = { state = state.copy(requireBirch = !state.requireBirch) },
+                                label = { Text("要白桦森林") },
+                            )
+                            FilterChip(
+                                selected = state.requireCherry,
+                                onClick = { state = state.copy(requireCherry = !state.requireCherry) },
+                                label = { Text("要樱花林") },
                             )
                             FilterChip(
                                 selected = state.requireBasalt,
@@ -552,6 +634,54 @@ fun FlowerFarmScreen(
             }
         }
     }
+
+    if (showHistory) {
+        ModalBottomSheet(
+            onDismissRequest = { showHistory = false },
+            sheetState = historySheet,
+        ) {
+            FlowerHistorySheet(
+                entries = history,
+                onPick = { entry ->
+                    val version = GameVersions.find(entry.versionLabel) ?: state.version
+                    val exact = GameVersions.find(entry.versionLabel)
+                    state = state.copy(
+                        seedText = entry.seedText,
+                        version = exact ?: version,
+                        minX = entry.minX.toString(),
+                        minZ = entry.minZ.toString(),
+                        maxX = entry.maxX.toString(),
+                        maxZ = entry.maxZ.toString(),
+                        squareMode = false,
+                        longSide = entry.longSide.toString(),
+                        shortSide = entry.shortSide.toString(),
+                        useShortSide = entry.longSide != entry.shortSide,
+                        orientation = entry.orientation,
+                        flowerMargin = entry.flowerMargin.toString(),
+                        fastMode = entry.fastMode,
+                        requirePale = entry.requirePale,
+                        requireBirch = entry.requireBirch,
+                        requireCherry = entry.requireCherry,
+                        requireBasalt = entry.requireBasalt,
+                    )
+                    showHistory = false
+                },
+                onDelete = { entry ->
+                    scope.launch {
+                        history = withContext(Dispatchers.IO) {
+                            FlowerHistoryStore.remove(context, entry.id)
+                        }
+                    }
+                },
+                onClear = {
+                    scope.launch {
+                        withContext(Dispatchers.IO) { FlowerHistoryStore.clear(context) }
+                        history = emptyList()
+                    }
+                },
+            )
+        }
+    }
 }
 
 @Composable
@@ -615,5 +745,80 @@ private fun FlowerFarmCard(
                 ) { Text("沼泽") }
             }
         }
+    }
+
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FlowerHistorySheet(
+    entries: List<FlowerHistoryEntry>,
+    onPick: (FlowerHistoryEntry) -> Unit,
+    onDelete: (FlowerHistoryEntry) -> Unit,
+    onClear: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("搜索历史", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "${entries.size} 条",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            if (entries.isNotEmpty()) {
+                TextButton(onClick = onClear) { Text("清空") }
+            }
+        }
+        Text(
+            "点一条把种子、版本和全部参数填回去，再点开始搜索。",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (entries.isEmpty()) {
+            Text(
+                "还没有记录：跑完一次搜索就会自动存下来。",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(vertical = 24.dp),
+            )
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp)) {
+                items(entries, key = { it.id }) { entry ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "种子 ${entry.seedText} · ${entry.versionLabel}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontFamily = FontFamily.Monospace,
+                                )
+                                Text(
+                                    entry.summary(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    "范围 ${entry.minX}..${entry.maxX} / ${entry.minZ}..${entry.maxZ} · " +
+                                        "${entry.elapsedMs / 1000} 秒",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TextButton(onClick = { onPick(entry) }) { Text("复用") }
+                            IconButton(onClick = { onDelete(entry) }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "删除")
+                            }
+                        }
+                        HorizontalDivider()
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.width(1.dp))
     }
 }

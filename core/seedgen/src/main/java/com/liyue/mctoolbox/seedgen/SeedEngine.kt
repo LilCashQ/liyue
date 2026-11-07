@@ -493,7 +493,8 @@ class SeedEngine(
         shortSide: Int,
         squareOnly: Boolean,
         requirePale: Boolean,
-        requireBothBonus: Boolean,
+        requireBirch: Boolean = false,
+        requireCherry: Boolean = false,
         requireBasalt: Boolean,
         orientation: Int = 0,
         flowerMargin: Int = 0,
@@ -513,7 +514,8 @@ class SeedEngine(
             shortSide,
             if (squareOnly) 1 else 0,
             if (requirePale) 1 else 0,
-            if (requireBothBonus) 1 else 0,
+            if (requireBirch) 1 else 0,
+            if (requireCherry) 1 else 0,
             if (requireBasalt) 1 else 0,
             orientation,
             flowerMargin,
@@ -521,6 +523,9 @@ class SeedEngine(
             maxRows.coerceIn(1, 64),
             out,
         )
+        if (rows == -2) {
+            throw IllegalStateException("这个范围相对窗口尺寸太大，采样会失真：把范围缩小，或把窗口调大")
+        }
         if (rows <= 0) return emptyList()
         return (0 until rows).map { index ->
             val base = index * 16

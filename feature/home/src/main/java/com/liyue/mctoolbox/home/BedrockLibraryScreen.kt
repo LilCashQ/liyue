@@ -69,7 +69,7 @@ data class BedrockLink(val label: String, val url: String) {
             url.contains("drive.uc.cn") -> "UC 网盘"
             url.contains("123pan") -> "123 网盘"
             url.contains("quark.cn") -> "夸克网盘"
-            url.contains("guangyapan") -> "光雅盘"
+            url.contains("guangyapan") -> "光鸭云盘"
             url.contains("pan.baidu.com") -> "百度网盘"
             url.contains("xunlei.com") -> "迅雷网盘"
             url.contains("endyun") -> "端云"
