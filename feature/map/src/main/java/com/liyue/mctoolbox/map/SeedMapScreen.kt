@@ -503,6 +503,7 @@ private fun SeedSheet(
             text = "解析后种子：${state.seed}" +
                 if (state.renderMillis > 0) " · 渲染 ${state.renderMillis} ms" else "",
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.Monospace,
         )
     }
@@ -752,6 +753,7 @@ private fun SeedMapCanvas(
                 },
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = FontFamily.Monospace,
             )
         }
@@ -849,6 +851,7 @@ private fun SeedMapCanvas(
                                     }
                                 },
                                 style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         IconButton(onClick = onClearSelection) {
@@ -863,6 +866,7 @@ private fun SeedMapCanvas(
                         Text(
                             text = "最近结构：${marker.type.label} (${marker.x}, ${marker.z}) · $distance 方块",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     val targetDimension = when (state.dimension) {
@@ -988,6 +992,7 @@ private fun LegendSheet(
                         "渲染 $renderMillis ms · 可多选，选中 ${highlightIds.size} 个群系"
                     },
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             androidx.compose.material3.TextButton(
@@ -1061,6 +1066,7 @@ private fun LegendSheet(
                     Text(
                         text = "%.0f%%".format(entry.cells * 100.0 / total),
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace,
                     )
                 }
@@ -1643,12 +1649,14 @@ private fun StructureListSheet(
                             Text(
                                 text = "X ${marker.x}  Z ${marker.z}",
                                 style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontFamily = FontFamily.Monospace,
                             )
                         }
                         Text(
                             text = "${distance.roundToInt()} 方块",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.Monospace,
                         )
                     }
@@ -2092,6 +2100,7 @@ private fun StructureDetailsSheet(
                                 Text(
                                     text = piece.name,
                                     style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontFamily = FontFamily.Monospace,
                                 )
                                 Text(
@@ -2173,6 +2182,7 @@ private fun DetailRow(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.weight(1f),
         )
