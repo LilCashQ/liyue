@@ -38,6 +38,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.liyue.mctoolbox.map.MapGlyph
+import com.liyue.mctoolbox.map.MapIcons
 
 /**
  * Chunkbase's app index, rebuilt for a phone: two columns of cards, grouped the
@@ -113,15 +115,20 @@ private fun AppCard(app: ChunkbaseApp, onClick: () -> Unit) {
         Column(modifier = Modifier.padding(12.dp)) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .background(app.color.copy(alpha = 0.18f), CircleShape),
+                    .size(36.dp)
+                    .background(app.color.copy(alpha = 0.14f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(14.dp)
-                        .background(app.color, CircleShape),
-                )
+                val glyph = app.structure?.let { MapIcons.structure(it) }
+                if (glyph != null) {
+                    MapGlyph(glyph, 27.dp, 8.dp)
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(14.dp)
+                            .background(app.color, CircleShape),
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
             Text(

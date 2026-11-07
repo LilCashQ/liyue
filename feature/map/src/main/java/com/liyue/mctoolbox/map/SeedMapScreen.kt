@@ -1048,11 +1048,12 @@ private fun LegendSheet(
                         .padding(horizontal = 6.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .background(entry.color, RoundedCornerShape(3.dp)),
-                    )
+                    val glyph = MapIcons.biome(entry.name)
+                    if (glyph != null) {
+                        MapGlyph(glyph, 20.dp, 6.dp)
+                    } else {
+                        MapDot(entry.color, 18.dp)
+                    }
                     Spacer(Modifier.width(10.dp))
                     Text(
                         text = entry.name,
@@ -1399,11 +1400,12 @@ private fun OrePickerSheet(
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .background(oreColor(kind), RoundedCornerShape(3.dp)),
-                    )
+                    val glyph = MapIcons.ore(kind)
+                    if (glyph != null) {
+                        MapGlyph(glyph, 20.dp, 6.dp)
+                    } else {
+                        MapDot(oreColor(kind), 16.dp)
+                    }
                     Spacer(Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(kind.label, style = MaterialTheme.typography.bodyMedium)
@@ -1472,11 +1474,12 @@ private fun StructureFilterSheet(
                         .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .background(type.color, RoundedCornerShape(50)),
-                    )
+                    val glyph = MapIcons.structure(type)
+                    if (glyph != null) {
+                        MapGlyph(glyph, 20.dp, 6.dp)
+                    } else {
+                        MapDot(type.color, 12.dp)
+                    }
                     Spacer(Modifier.width(10.dp))
                     Text(type.label, modifier = Modifier.weight(1f))
                     androidx.compose.material3.Checkbox(
@@ -1580,14 +1583,15 @@ private fun StructureListSheet(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(9.dp)
-                                    .background(
-                                        if (on) type.color else type.color.copy(alpha = 0.3f),
-                                        RoundedCornerShape(50),
-                                    ),
-                            )
+                            val glyph = MapIcons.structure(type)
+                            if (glyph != null) {
+                                MapGlyph(glyph, 18.dp, 5.dp)
+                            } else {
+                                MapDot(
+                                    if (on) type.color else type.color.copy(alpha = 0.3f),
+                                    9.dp,
+                                )
+                            }
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "${type.label} ${state.structures.count { it.type == type }}",
@@ -1638,11 +1642,12 @@ private fun StructureListSheet(
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .background(marker.type.color, RoundedCornerShape(50)),
-                        )
+                        val glyph = MapIcons.structure(marker.type)
+                        if (glyph != null) {
+                            MapGlyph(glyph, 20.dp, 6.dp)
+                        } else {
+                            MapDot(marker.type.color, 10.dp)
+                        }
                         Spacer(Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(marker.type.label, style = MaterialTheme.typography.bodyMedium)
@@ -1687,11 +1692,12 @@ private fun FeatureChips(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(9.dp)
-                            .background(type.color, RoundedCornerShape(50)),
-                    )
+                    val glyph = MapIcons.structure(type)
+                    if (glyph != null) {
+                        MapGlyph(glyph, 16.dp, 5.dp)
+                    } else {
+                        MapDot(type.color, 9.dp)
+                    }
                     Spacer(Modifier.width(6.dp))
                     Text(type.label, style = MaterialTheme.typography.labelMedium)
                 }

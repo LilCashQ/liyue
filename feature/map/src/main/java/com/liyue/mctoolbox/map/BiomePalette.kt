@@ -22,8 +22,10 @@ object BiomePalette {
         }
     }
 
+    fun canonical(rawName: String): String = ALIASES[rawName] ?: rawName
+
     fun colorForName(rawName: String): Color {
-        val name = ALIASES[rawName] ?: rawName
+        val name = canonical(rawName)
         BY_NAME[name]?.let { return it }
         return when {
             name.startsWith("unknown") -> UNKNOWN
