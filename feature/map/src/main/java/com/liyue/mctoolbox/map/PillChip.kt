@@ -57,16 +57,23 @@ fun PillChipSurface(
         enabled = enabled,
         shape = RoundedCornerShape(50),
         color = if (selected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            Color(0xFFEDF1F7)
         } else {
             MaterialTheme.colorScheme.surface
         },
         contentColor = if (selected) {
-            MaterialTheme.colorScheme.primary
+            MaterialTheme.colorScheme.onSurface
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
-        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(
+            if (selected) 1.2.dp else 1.dp,
+            if (selected) {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            },
+        ),
     ) {
         content()
     }
@@ -95,7 +102,7 @@ fun LiYueField(
     readOnly: Boolean = false,
     enabled: Boolean = true,
 ) {
-    androidx.compose.material3.TextField(
+    androidx.compose.material3.OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
@@ -110,14 +117,16 @@ fun LiYueField(
         keyboardOptions = keyboardOptions,
         readOnly = readOnly,
         enabled = enabled,
-        shape = MaterialTheme.shapes.medium,
-        colors = androidx.compose.material3.TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-            disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            disabledContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     )
 }

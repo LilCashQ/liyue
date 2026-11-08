@@ -11,6 +11,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +43,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -56,7 +60,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.liyue.mctoolbox.seedgen.Dimension
 import com.liyue.mctoolbox.seedgen.McVersion
 import com.liyue.mctoolbox.seedgen.SeedEngine
@@ -324,47 +331,22 @@ fun FlowerFarmScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(104.dp)
-                        .clip(RoundedCornerShape(18.dp)),
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.flower_banner),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White.copy(alpha = 0.62f)),
-                    )
-                    Text(
-                        text = "一个窗口里凑齐花林、沼泽与苍白花园",
-                        color = Color(0xFF10306E),
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(14.dp),
-                    )
-                }
-            }
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.Bottom) {
                     LiYueField(
                         value = state.seedText,
                         onValueChange = { state = state.copy(seedText = it) },
                         label = { Text("种子") },
                         singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
                         modifier = Modifier.weight(1f),
                     )
                     Spacer(Modifier.width(10.dp))
-                    Column {
-                        OutlinedButton(onClick = { versionMenu = true }) {
-                            Text(state.version.label)
-                        }
+                    Box {
+                        PillChip(
+                            label = state.version.label,
+                            selected = false,
+                            onClick = { versionMenu = true },
+                        )
                         DropdownMenu(
                             expanded = versionMenu,
                             onDismissRequest = { versionMenu = false },
@@ -392,124 +374,59 @@ fun FlowerFarmScreen(
             }
 
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("搜索范围", style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            "主世界方块坐标，范围越大越慢；±16384 一般几秒，±500000 要几分钟。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                FormSection(
+                    title = "搜索范围",
+                    hint = "主世界方块坐标。±16384 一般几秒，±500000 要几分钟。",
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LiYueField(
+                            value = state.minX,
+                            onValueChange = { state = state.copy(minX = it) },
+                            label = { Text("X 最小") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.weight(1f),
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            LiYueField(
-                                value = state.minX,
-                                onValueChange = { state = state.copy(minX = it) },
-                                label = { Text("MinX") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            LiYueField(
-                                value = state.maxX,
-                                onValueChange = { state = state.copy(maxX = it) },
-                                label = { Text("MaxX") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        Spacer(Modifier.width(4.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            LiYueField(
-                                value = state.minZ,
-                                onValueChange = { state = state.copy(minZ = it) },
-                                label = { Text("MinZ") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            LiYueField(
-                                value = state.maxZ,
-                                onValueChange = { state = state.copy(maxZ = it) },
-                                label = { Text("MaxZ") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            TextButton(onClick = {
-                                state = state.copy(
-                                    minX = "-16384", maxX = "16384",
-                                    minZ = "-16384", maxZ = "16384",
-                                )
-                            }) { Text("重置为默认区域") }
-                            TextButton(onClick = {
-                                state = state.copy(
-                                    minX = "-500000", maxX = "500000",
-                                    minZ = "-500000", maxZ = "500000",
-                                )
-                            }) { Text("世界边界") }
-                        }
+                        LiYueField(
+                            value = state.maxX,
+                            onValueChange = { state = state.copy(maxX = it) },
+                            label = { Text("X 最大") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
-                }
-            }
-
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("窗口尺寸", style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            "窗口里要同时有繁花森林、沼泽" +
-                                (if (paleApplies) "和苍白花园" else "") +
-                                "，而且繁花森林里要有完整的树花梯度。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LiYueField(
+                            value = state.minZ,
+                            onValueChange = { state = state.copy(minZ = it) },
+                            label = { Text("Z 最小") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.weight(1f),
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            LiYueField(
-                                value = state.longSide,
-                                onValueChange = { state = state.copy(longSide = it) },
-                                label = { Text("窗口长边") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            LiYueField(
-                                value = state.shortSide,
-                                onValueChange = { state = state.copy(shortSide = it) },
-                                label = { Text("窗口短边") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
+                        LiYueField(
+                            value = state.maxZ,
+                            onValueChange = { state = state.copy(maxZ = it) },
+                            label = { Text("Z 最大") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        InlineLink("重置默认") {
+                            state = state.copy(
+                                minX = "-16384", maxX = "16384",
+                                minZ = "-16384", maxZ = "16384",
                             )
                         }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            LiYueField(
-                                value = state.moduleGap,
-                                onValueChange = { state = state.copy(moduleGap = it) },
-                                label = { Text("模距") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            TextButton(onClick = {
-                                val gap = state.moduleGap.toIntOr(10).coerceIn(1, 31)
-                                val side = (32 * gap + 16).coerceAtMost(1024)
-                                state = state.copy(longSide = side.toString(), useShortSide = false)
-                            }) { Text("按模距定长边") }
-                        }
-                        Text(
-                            "长边 = 32 × 模距 + 16（封顶 1024）；取消短边就是正方形窗口。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            PillChip(
-                                    label = "启用短边",
-                                    selected = state.useShortSide,
-                                    onClick = { state = state.copy(useShortSide = !state.useShortSide) },
-                            )
-                            PillChip(
-                                    label = "快速模式",
-                                    selected = state.fastMode,
-                                    onClick = { state = state.copy(fastMode = !state.fastMode) },
+                        InlineLink("世界边界") {
+                            state = state.copy(
+                                minX = "-500000", maxX = "500000",
+                                minZ = "-500000", maxZ = "500000",
                             )
                         }
                     }
@@ -517,80 +434,132 @@ fun FlowerFarmScreen(
             }
 
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("附加条件", style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            "勾上的必须是硬条件；没勾的只影响排序（有樱花/野花优先，再看离原点远近）。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                FormSection(
+                    title = "窗口尺寸",
+                    hint = "窗口里要同时有繁花森林、沼泽" +
+                        (if (paleApplies) "和苍白花园" else "") +
+                        "，繁花森林里还要有完整的树花梯度。",
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LiYueField(
+                            value = state.longSide,
+                            onValueChange = { state = state.copy(longSide = it) },
+                            label = { Text("长边") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.weight(1f),
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        LiYueField(
+                            value = state.shortSide,
+                            onValueChange = { state = state.copy(shortSide = it) },
+                            label = { Text("短边") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.weight(1f),
+                        )
+                        LiYueField(
+                            value = state.moduleGap,
+                            onValueChange = { state = state.copy(moduleGap = it) },
+                            label = { Text("模距") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    InlineLink("按模距定长边（32 × 模距 + 16）") {
+                        val gap = state.moduleGap.toIntOr(10).coerceIn(1, 31)
+                        val side = (32 * gap + 16).coerceAtMost(1024)
+                        state = state.copy(longSide = side.toString(), useShortSide = false)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    FormSwitch(
+                        label = "启用短边",
+                        caption = "关掉就是正方形窗口",
+                        checked = state.useShortSide,
+                        onChange = { state = state.copy(useShortSide = it) },
+                    )
+                    FormSwitch(
+                        label = "快速模式",
+                        caption = "隔 16 格粗算，先出结果；关掉是逐格精确",
+                        checked = state.fastMode,
+                        onChange = { state = state.copy(fastMode = it) },
+                    )
+                }
+            }
+
+            item {
+                FormSection(
+                    title = "附加条件",
+                    hint = "打开的都是硬条件；关掉的只影响排序（有樱花/野花优先，再看离原点远近）。",
+                ) {
+                    FormSwitch(
+                        label = "要白桦森林",
+                        checked = state.requireBirch,
+                        onChange = { state = state.copy(requireBirch = it) },
+                    )
+                    FormSwitch(
+                        label = "要樱花林",
+                        checked = state.requireCherry,
+                        onChange = { state = state.copy(requireCherry = it) },
+                    )
+                    FormSwitch(
+                        label = if (paleApplies) "必须有苍白花园" else "苍白花园（1.21.4+ 才有）",
+                        enabled = paleApplies,
+                        checked = state.requirePale && paleApplies,
+                        onChange = { state = state.copy(requirePale = it) },
+                    )
+                    FormSwitch(
+                        label = "要玄武岩三角洲",
+                        caption = "对应下界群系",
+                        checked = state.requireBasalt,
+                        onChange = { state = state.copy(requireBasalt = it) },
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box {
                             PillChip(
-                                    label = "要白桦森林",
-                                    selected = state.requireBirch,
-                                    onClick = { state = state.copy(requireBirch = !state.requireBirch) },
+                                label = when (state.orientation) {
+                                    1 -> "横向窗口"
+                                    2 -> "竖向窗口"
+                                    else -> "任意朝向"
+                                },
+                                selected = false,
+                                onClick = { orientationMenu = true },
                             )
-                            PillChip(
-                                    label = "要樱花林",
-                                    selected = state.requireCherry,
-                                    onClick = { state = state.copy(requireCherry = !state.requireCherry) },
-                            )
-                            PillChip(
-                                    label = "要玄武岩",
-                                    selected = state.requireBasalt,
-                                    onClick = { state = state.copy(requireBasalt = !state.requireBasalt) },
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Column {
-                                OutlinedButton(onClick = { orientationMenu = true }) {
-                                    Text(
-                                        when (state.orientation) {
-                                            1 -> "横向"
-                                            2 -> "竖向"
-                                            else -> "任意朝向"
+                            DropdownMenu(
+                                expanded = orientationMenu,
+                                onDismissRequest = { orientationMenu = false },
+                            ) {
+                                listOf(0 to "任意朝向", 1 to "横向", 2 to "竖向").forEach { (value, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            state = state.copy(orientation = value)
+                                            orientationMenu = false
                                         },
                                     )
                                 }
-                                DropdownMenu(
-                                    expanded = orientationMenu,
-                                    onDismissRequest = { orientationMenu = false },
-                                ) {
-                                    listOf(0 to "任意朝向", 1 to "横向", 2 to "竖向").forEach { (value, label) ->
-                                        DropdownMenuItem(
-                                            text = { Text(label) },
-                                            onClick = {
-                                                state = state.copy(orientation = value)
-                                                orientationMenu = false
-                                            },
-                                        )
-                                    }
-                                }
                             }
-                            LiYueField(
-                                value = state.flowerMargin,
-                                onValueChange = { state = state.copy(flowerMargin = it) },
-                                label = { Text("花林离边距离") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            LiYueField(
-                                value = state.threads,
-                                onValueChange = { state = state.copy(threads = it) },
-                                label = { Text("线程数") },
-                                singleLine = true,
-                                modifier = Modifier.width(96.dp),
-                            )
                         }
-                        PillChip(
-                                label = if (paleApplies) "必须有苍白花园" else "苍白花园（1.21.4+ 才有）",
-                                selected = state.requirePale && paleApplies,
-                                onClick = { state = state.copy(requirePale = !state.requirePale) },
-                                enabled = paleApplies,
+                        LiYueField(
+                            value = state.flowerMargin,
+                            onValueChange = { state = state.copy(flowerMargin = it) },
+                            label = { Text("花林离边") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.weight(1f),
+                        )
+                        LiYueField(
+                            value = state.threads,
+                            onValueChange = { state = state.copy(threads = it) },
+                            label = { Text("线程") },
+                            singleLine = true,
+                            textStyle = NumStyle,
+                            modifier = Modifier.width(84.dp),
                         )
                     }
                 }
@@ -725,69 +694,191 @@ fun FlowerFarmScreen(
     }
 }
 
+
+private val NumStyle = TextStyle(
+    fontFamily = FontFamily.Monospace,
+    fontSize = 16.sp,
+    fontWeight = FontWeight.Medium,
+)
+
+/** 一张白纸卡片包住一组同类的输入项，标题在上，说明在下。 */
+@Composable
+private fun FormSection(
+    title: String,
+    hint: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 16.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            if (hint != null) {
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            content()
+        }
+    }
+}
+
+/** 卡片里的次要操作，用带下划线的文字而不是又一个按钮。 */
+@Composable
+private fun InlineLink(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+    )
+}
+
+/** 二选一的开关行：左边文字，右边 Switch，整行可点。 */
+@Composable
+private fun FormSwitch(
+    label: String,
+    checked: Boolean,
+    onClickCaption: String? = null,
+    caption: String? = null,
+    enabled: Boolean = true,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onChange(!checked) }
+            .padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                },
+            )
+            val sub = caption ?: onClickCaption
+            if (sub != null) {
+                Text(
+                    text = sub,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = { onChange(it) },
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = MaterialTheme.colorScheme.onSurface,
+                checkedBorderColor = MaterialTheme.colorScheme.onSurface,
+            ),
+        )
+    }
+}
+
 @Composable
 private fun FlowerFarmCard(
     hit: SeedEngine.FlowerFarmHit,
     onOpenMap: (MapTarget) -> Unit,
     state: FlowerFarmState,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
+    val seed = SeedEngine.parseJavaSeed(state.seedText)
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${hit.flowerX} / ${hit.flowerZ}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = if (hit.flowerY > 0) "Y ${hit.flowerY}" else "Y —",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            StatRow("窗口", "${hit.sideX}×${hit.sideZ} · ${hit.orientation}")
+            StatRow("花林", "${hit.flowerArea} 格")
+            StatRow("沼泽", "${hit.swampArea} 格")
+            if (hit.paleArea > 0) StatRow("苍白花园", "${hit.paleArea} 格")
+            StatRow("下界", hit.nether)
+            if (hit.bonus.isNotBlank()) StatRow("加分群系", hit.bonus)
+            Spacer(Modifier.height(6.dp))
             Text(
-                text = "花田 ${hit.flowerX} / ${hit.flowerZ} · Y ${if (hit.flowerY > 0) hit.flowerY else "—"}",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Text(
-                text = "窗口 ${hit.sideX}×${hit.sideZ}（${hit.orientation}） · 花林 ${hit.flowerArea}" +
-                    " · 沼泽 ${hit.swampArea}" + if (hit.paleArea > 0) " · 苍白 ${hit.paleArea}" else "",
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
-            )
-            Text(
-                text = "下界 ${hit.nether}" + if (hit.bonus.isNotBlank()) " · ${hit.bonus}" else "",
+                text = "从 Y ${if (hit.flowerY > 0) hit.flowerY else "—"} 往上 32 格搭分层平台，就是完整的树花梯度。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                text = "从 Y ${if (hit.flowerY > 0) hit.flowerY else "—"} 往上 32 格搭分层平台，" +
-                    "就是完整的树花梯度",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                val seed = SeedEngine.parseJavaSeed(state.seedText)
-                TextButton(
-                    onClick = {
-                        onOpenMap(
-                            MapTarget(
-                                seed = seed,
-                                seedText = state.seedText,
-                                versionLabel = state.version.label,
-                                dimension = Dimension.OVERWORLD,
-                                centerX = hit.flowerX.toDouble(),
-                                centerZ = hit.flowerZ.toDouble(),
-                            ),
-                        )
-                    },
-                ) { Text("花田") }
-                TextButton(
-                    onClick = {
-                        onOpenMap(
-                            MapTarget(
-                                seed = seed,
-                                seedText = state.seedText,
-                                versionLabel = state.version.label,
-                                dimension = Dimension.OVERWORLD,
-                                centerX = hit.swampX.toDouble(),
-                                centerZ = hit.swampZ.toDouble(),
-                            ),
-                        )
-                    },
-                ) { Text("沼泽") }
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                InlineLink("打开花田") {
+                    onOpenMap(
+                        MapTarget(
+                            seed = seed,
+                            seedText = state.seedText,
+                            versionLabel = state.version.label,
+                            dimension = Dimension.OVERWORLD,
+                            centerX = hit.flowerX.toDouble(),
+                            centerZ = hit.flowerZ.toDouble(),
+                        ),
+                    )
+                }
+                InlineLink("打开沼泽") {
+                    onOpenMap(
+                        MapTarget(
+                            seed = seed,
+                            seedText = state.seedText,
+                            versionLabel = state.version.label,
+                            dimension = Dimension.OVERWORLD,
+                            centerX = hit.swampX.toDouble(),
+                            centerZ = hit.swampZ.toDouble(),
+                        ),
+                    )
+                }
             }
         }
     }
+}
 
+/** 结果卡里的「标签 —— 数值」一行。 */
+@Composable
+private fun StatRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(72.dp),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
