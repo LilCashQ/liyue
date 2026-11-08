@@ -8,12 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -179,45 +179,6 @@ fun ScriptScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(112.dp)
-                        .clip(RoundedCornerShape(18.dp)),
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.script_banner),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
-                                    ),
-                                ),
-                            ),
-                    )
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(horizontal = 16.dp),
-                    ) {
-                        Text("脚本工坊", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "写几行 Lua，让整片区域替你算",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     LiYueField(
                         value = state.seedText,
@@ -270,15 +231,15 @@ fun ScriptScreen(
                 )
             }
             item {
-                Button(
+                LiYueActionButton(
+                    text = if (state.running) "运行中…" else "运行",
                     onClick = { runScript() },
                     enabled = !state.running,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
-                    Text(if (state.running) "运行中…" else "运行")
-                }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth(Alignment.End),
+                    leading = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
+                )
             }
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {

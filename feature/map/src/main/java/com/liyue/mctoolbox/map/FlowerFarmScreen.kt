@@ -1,5 +1,6 @@
 package com.liyue.mctoolbox.map
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -335,6 +336,11 @@ fun FlowerFarmScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White.copy(alpha = 0.62f)),
+                    )
                     Text(
                         text = "一个窗口里凑齐花林、沼泽与苍白花园",
                         color = Color(0xFF10306E),
@@ -592,23 +598,23 @@ fun FlowerFarmScreen(
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
+                    LiYueActionButton(
+                        text = if (state.running) "${state.progress}/${state.batches}" else "开始搜索",
                         onClick = { run() },
                         enabled = !state.running,
                         modifier = Modifier.weight(1f),
-                    ) {
-                        if (state.running) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.width(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                        } else {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Text(if (state.running) "${state.progress}/${state.batches}" else "开始搜索")
-                    }
+                        leading = {
+                            if (state.running) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.width(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White,
+                                )
+                            } else {
+                                Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                            }
+                        },
+                    )
                     OutlinedButton(
                         onClick = {
                             if (state.running) {

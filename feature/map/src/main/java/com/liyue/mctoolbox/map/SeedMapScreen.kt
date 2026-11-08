@@ -430,7 +430,7 @@ private fun SeedSheet(
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onApply) { Text("生成") }
+            LiYueActionButton(text = "生成", onClick = onApply)
         }
 
         var versionExpanded by remember { mutableStateOf(false) }
@@ -1961,13 +1961,14 @@ private fun SettingsSheet(
                 ),
                 modifier = Modifier.weight(1f),
             )
-            Button(
+            LiYueActionButton(
+                text = "跳转",
                 onClick = {
                     val x = xText.trim().toDoubleOrNull()
                     val z = zText.trim().toDoubleOrNull()
                     if (x != null && z != null) onJump(x, z)
                 },
-            ) { Text("Go") }
+            )
         }
 
         TextButton(onClick = onOpenDebug) { Text("打开自检面板") }
@@ -2344,8 +2345,10 @@ private fun UndergroundSheet(
             }
         }
 
-        Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
-            Text("重新生成")
-        }
+        LiYueActionButton(
+            text = "重新生成",
+            onClick = onRefresh,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

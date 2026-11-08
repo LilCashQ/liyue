@@ -2,15 +2,24 @@ package com.liyue.mctoolbox.map
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
@@ -122,4 +131,41 @@ fun LiYueSheetHandle() {
             .size(width = 36.dp, height = 4.dp)
             .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50)),
     )
+}
+
+/**
+ * Primary action: a dark ink pill instead of a slab of colour, so a screen with
+ * one button does not read as "a blue page".
+ */
+@Composable
+fun LiYueActionButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leading: (@Composable () -> Unit)? = null,
+) {
+    val shape = RoundedCornerShape(50)
+    val bg = if (enabled) Color(0xFF111417) else MaterialTheme.colorScheme.surfaceVariant
+    val fg = if (enabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = shape,
+        color = bg,
+        contentColor = fg,
+        modifier = modifier.heightIn(min = 48.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leading != null) {
+                CompositionLocalProvider(LocalContentColor provides fg) { leading() }
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(text, style = MaterialTheme.typography.labelLarge, color = fg)
+        }
+    }
 }

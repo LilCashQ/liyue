@@ -59,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.liyue.mctoolbox.map.GameVersion
 import com.liyue.mctoolbox.map.GameVersions
+import com.liyue.mctoolbox.map.LiYueActionButton
 import com.liyue.mctoolbox.map.LiYueField
 import com.liyue.mctoolbox.map.PillChip
 import com.liyue.mctoolbox.map.groupLabel
@@ -497,15 +498,13 @@ private fun FinderQueryCard(
             }
 
             Spacer(Modifier.height(10.dp))
-            Button(
+            LiYueActionButton(
+                text = "开始搜索",
                 onClick = onSearch,
                 enabled = !state.loading,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("开始搜索")
-            }
+                leading = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            )
         }
     }
 }
