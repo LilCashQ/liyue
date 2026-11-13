@@ -1321,7 +1321,7 @@ private fun niceStep(targetBlocks: Float): Float {
     return factor * magnitude
 }
 
-private val ICON_SIZE = 11.dp
+private val ICON_SIZE = 16.dp
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarkers(
     state: MapUiState,
@@ -1341,7 +1341,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
     // Wide views put hundreds of markers on screen; drawing a 20dp plate for
     // each buries the biome colours, so the sprite shrinks with zoom and
     // neighbouring markers share one plate.
-    val iconSide = (ICON_SIZE.toPx() * (3f / bpp)).coerceIn(7.dp.toPx(), ICON_SIZE.toPx())
+    val iconSide = (ICON_SIZE.toPx() * (4f / bpp)).coerceIn(11.dp.toPx(), ICON_SIZE.toPx())
     val drawnCells = HashSet<Long>()
     state.structures.forEach { marker ->
         val px = ((marker.x - state.camera.centerX) / bpp + size.width / 2f).toFloat()
