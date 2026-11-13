@@ -25,44 +25,6 @@ import com.liyue.mctoolbox.seedgen.OreKind
  */
 internal object MapIcons {
 
-    private val STRUCTURES = intArrayOf(
-        R.drawable.st_00, // village
-        R.drawable.st_01, // stronghold
-        R.drawable.st_02, // mansion
-        R.drawable.st_03, // desert pyramid
-        R.drawable.st_04, // trail ruins
-        R.drawable.st_05, // swamp hut
-        R.drawable.st_06, // monument
-        R.drawable.st_07, // shipwreck
-        R.drawable.st_08, // outpost
-        R.drawable.st_09, // ancient city
-        R.drawable.st_10, // trial chambers
-        R.drawable.st_11, // mineshaft
-        R.drawable.st_12, // treasure
-        R.drawable.st_13, // ruined portal
-        R.drawable.st_14, // fortress
-        R.drawable.st_15, // end city
-    )
-
-    private val STRUCTURES_B = intArrayOf(
-        R.drawable.sx_00, // slime chunk
-        R.drawable.sx_01, // jungle temple
-        R.drawable.sx_02, // igloo
-        R.drawable.sx_03, // ocean ruin
-        R.drawable.sx_04, // desert well
-        R.drawable.sx_05, // geode
-        R.drawable.sx_06, // abandoned camp
-        R.drawable.sx_07, // bastion
-        R.drawable.sx_08, // nether fossil
-        R.drawable.sx_09, // end gateway
-        R.drawable.sx_10, // ravine
-        R.drawable.sx_11, // cave
-        R.drawable.sx_12, // ore vein
-        R.drawable.sx_13, // spawn
-        R.drawable.sx_14, // pin
-        R.drawable.sx_15, // chests
-    )
-
     private val ORES = intArrayOf(
         R.drawable.ore_00, // diamond
         R.drawable.ore_01, // iron
@@ -113,59 +75,34 @@ internal object MapIcons {
         return out
     }
 
-    fun structure(type: StructureType): Int? {
-        val index = structureIndex(type)
-        if (index < 0) {
-            return STRUCTURES_B.getOrNull(
-                when (type) {
-                    StructureType.SLIME_CHUNK -> 0
-                    StructureType.JUNGLE_TEMPLE -> 1
-                    StructureType.IGLOO -> 2
-                    StructureType.OCEAN_RUIN -> 3
-                    StructureType.DESERT_WELL -> 4
-                    StructureType.GEODE -> 5
-                    StructureType.ABANDONED_CAMP -> 6
-                    StructureType.BASTION -> 7
-                    StructureType.NETHER_FOSSIL -> 8
-                    StructureType.END_GATEWAY -> 9
-                    else -> -1
-                }
-            )
-        }
-        return STRUCTURES.getOrNull(index)
+    fun structure(type: StructureType): Int? = when (type) {
+        StructureType.VILLAGE -> R.drawable.cb_village
+        StructureType.OUTPOST -> R.drawable.cb_outpost
+        StructureType.SHIPWRECK -> R.drawable.cb_shipwreck
+        StructureType.MONUMENT -> R.drawable.cb_monument
+        StructureType.MANSION -> R.drawable.cb_mansion
+        StructureType.ANCIENT_CITY -> R.drawable.cb_ancient_city
+        StructureType.TRAIL_RUINS -> R.drawable.cb_trail_ruins
+        StructureType.TRIAL_CHAMBERS -> R.drawable.cb_trial_chambers
+        StructureType.RUINED_PORTAL -> R.drawable.cb_ruined_portal
+        StructureType.STRONGHOLD -> R.drawable.cb_stronghold
+        StructureType.DESERT_PYRAMID -> R.drawable.cb_desert_pyramid
+        StructureType.JUNGLE_TEMPLE -> R.drawable.cb_jungle_temple
+        StructureType.SWAMP_HUT -> R.drawable.cb_swamp_hut
+        StructureType.IGLOO -> R.drawable.cb_igloo
+        StructureType.OCEAN_RUIN -> R.drawable.cb_ocean_ruin
+        StructureType.TREASURE -> R.drawable.cb_treasure
+        StructureType.MINESHAFT -> R.drawable.cb_mineshaft
+        StructureType.DESERT_WELL -> R.drawable.cb_desert_well
+        StructureType.GEODE -> R.drawable.cb_geode
+        StructureType.ABANDONED_CAMP -> R.drawable.cb_abandoned_camp
+        StructureType.FORTRESS -> R.drawable.cb_fortress
+        StructureType.BASTION -> R.drawable.cb_bastion
+        StructureType.NETHER_FOSSIL -> R.drawable.cb_nether_fossil
+        StructureType.END_CITY -> R.drawable.cb_end_city
+        StructureType.END_GATEWAY -> R.drawable.cb_end_gateway
+        StructureType.SLIME_CHUNK -> R.drawable.cb_slime
     }
-
-    private fun structureIndex(type: StructureType): Int = (
-        when (type) {
-            StructureType.VILLAGE -> 0
-            StructureType.STRONGHOLD -> 1
-            StructureType.MANSION -> 2
-            StructureType.DESERT_PYRAMID -> 3
-            StructureType.TRAIL_RUINS -> 4
-            StructureType.SWAMP_HUT -> 5
-            StructureType.MONUMENT -> 6
-            StructureType.SHIPWRECK -> 7
-            StructureType.OUTPOST -> 8
-            StructureType.ANCIENT_CITY -> 9
-            StructureType.TRIAL_CHAMBERS -> 10
-            StructureType.MINESHAFT -> 11
-            StructureType.TREASURE -> 12
-            StructureType.RUINED_PORTAL -> 13
-            StructureType.FORTRESS -> 14
-            StructureType.END_CITY -> 15
-            StructureType.SLIME_CHUNK,
-            StructureType.JUNGLE_TEMPLE,
-            StructureType.IGLOO,
-            StructureType.OCEAN_RUIN,
-            StructureType.DESERT_WELL,
-            StructureType.GEODE,
-            StructureType.ABANDONED_CAMP,
-            StructureType.BASTION,
-            StructureType.NETHER_FOSSIL,
-            StructureType.END_GATEWAY,
-            -> -1
-        }
-    )
 
     fun ore(kind: OreKind): Int? = ORES.getOrNull(
         when (kind) {

@@ -1321,7 +1321,7 @@ private fun niceStep(targetBlocks: Float): Float {
     return factor * magnitude
 }
 
-private val ICON_SIZE = 20.dp
+private val ICON_SIZE = 11.dp
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarkers(
     state: MapUiState,
@@ -1338,6 +1338,11 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
         drawCircle(oreColor(ore.kind).copy(alpha = 0.85f), 1.6.dp.toPx(), Offset(px, py))
     }
     val radius = 4.5.dp.toPx()
+    // Wide views put hundreds of markers on screen; drawing a 20dp plate for
+    // each buries the biome colours, so the sprite shrinks with zoom and
+    // neighbouring markers share one plate.
+    val iconSide = (ICON_SIZE.toPx() * (3f / bpp)).coerceIn(7.dp.toPx(), ICON_SIZE.toPx())
+    val drawnCells = HashSet<Long>()
     state.structures.forEach { marker ->
         val px = ((marker.x - state.camera.centerX) / bpp + size.width / 2f).toFloat()
         val py = ((marker.z - state.camera.centerZ) / bpp + size.height / 2f).toFloat()
@@ -1350,9 +1355,14 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
             return@forEach
         }
         if (bpp > marker.type.maxBlocksPerPixel) return@forEach
+        // one icon per screen cell keeps dense areas readable
+        val cellSize = iconSide.coerceAtLeast(1f)
+        val cell = ((px / cellSize).toInt().toLong() shl 32) or
+            ((py / cellSize).toInt().toLong() and 0xFFFFFFFFL)
         val icon = icons[marker.type]
         if (icon != null) {
-            val side = ICON_SIZE.toPx()
+            if (!drawnCells.add(cell)) return@forEach
+            val side = iconSide
             val selected = state.picked.any { it.key == marker.key }
             if (selected) {
                 drawCircle(
@@ -1361,17 +1371,11 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
                     center = center,
                 )
             }
-            drawRoundRect(
-                color = Color.White.copy(alpha = 0.94f),
-                topLeft = Offset(px - side / 2f, py - side / 2f),
-                size = androidx.compose.ui.geometry.Size(side, side),
-                cornerRadius = CornerRadius(side * 0.24f, side * 0.24f),
-            )
             drawImage(
                 image = icon,
                 dstOffset = IntOffset((px - side / 2f).roundToInt(), (py - side / 2f).roundToInt()),
                 dstSize = IntSize(side.roundToInt(), side.roundToInt()),
-                filterQuality = FilterQuality.Medium,
+                filterQuality = FilterQuality.None,
             )
         } else {
             drawCircle(Color.White.copy(alpha = 0.92f), radius + 1.8f, center)
