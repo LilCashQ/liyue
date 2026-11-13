@@ -2257,6 +2257,10 @@ private fun StructureDetailsSheet(
             return@Column
         }
 
+        if (details.pieces.isNotEmpty()) {
+            StructurePreview3D(details = details, modifier = Modifier.fillMaxWidth())
+        }
+
         val variant = details.variant
         if (variant != null) {
             Surface(
