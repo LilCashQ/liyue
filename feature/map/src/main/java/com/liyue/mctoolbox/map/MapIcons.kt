@@ -9,6 +9,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import android.content.Context
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -96,6 +100,18 @@ internal object MapIcons {
         R.drawable.bio_14, // mushroom fields
         R.drawable.bio_15, // river
     )
+
+    /** Decoded sprites for the map canvas, keyed by structure type. */
+    fun structureBitmaps(context: Context): Map<StructureType, ImageBitmap> {
+        val out = LinkedHashMap<StructureType, ImageBitmap>()
+        StructureType.entries.forEach { type ->
+            val res = structure(type) ?: return@forEach
+            runCatching {
+                BitmapFactory.decodeResource(context.resources, res)?.asImageBitmap()
+            }.getOrNull()?.let { out[type] = it }
+        }
+        return out
+    }
 
     fun structure(type: StructureType): Int? {
         val index = structureIndex(type)

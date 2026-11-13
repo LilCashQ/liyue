@@ -89,8 +89,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -114,7 +116,9 @@ import com.liyue.mctoolbox.seedgen.McVersion
 import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,6 +146,20 @@ fun SeedMapScreen(
     var showUnderground by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showDetails by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    var seedHistory by remember { mutableStateOf<List<SeedHistoryEntry>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        seedHistory = withContext(Dispatchers.IO) { SeedHistoryStore.load(context) }
+    }
+    fun rememberSeed() {
+        val snapshot = viewModel.state.value
+        scope.launch {
+            seedHistory = withContext(Dispatchers.IO) {
+                SeedHistoryStore.add(context, snapshot.seedText, snapshot.gameVersion.label)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -227,26 +245,9 @@ fun SeedMapScreen(
                     // A tap that lands on a structure marker opens its layout
                     // instead of dropping a biome probe on top of it. The pick
                     // radius follows the zoom so it stays ~28 screen pixels.
-                    val pick = (state.camera.blocksPerPixel * 28f).coerceAtLeast(32f)
-                    val hit = state.structures
-                        .filter { it.type != StructureType.SLIME_CHUNK }
-                        .filter { state.camera.blocksPerPixel <= it.type.maxBlocksPerPixel }
-                        .minByOrNull { marker ->
-                            val dx = (marker.x - x).toDouble()
-                            val dz = (marker.z - z).toDouble()
-                            dx * dx + dz * dz
-                        }
-                        ?.takeIf { marker ->
-                            val dx = (marker.x - x).toDouble()
-                            val dz = (marker.z - z).toDouble()
-                            dx * dx + dz * dz <= pick * pick
-                        }
-                    if (hit != null) {
-                        viewModel.openStructureDetails(hit)
-                        showDetails = true
-                    } else {
-                        viewModel.selectPoint(x, z)
-                    }
+                    val pick = (state.camera.blocksPerPixel * 26f).coerceIn(24f, 96f).roundToInt()
+                    val found = viewModel.pickStructuresAt(x, z, pick)
+                    if (found == 0) viewModel.selectPoint(x, z)
                 },
                 onZoomIn = { viewModel.zoomBy(2f) },
                 onZoomOut = { viewModel.zoomBy(0.5f) },
@@ -257,6 +258,12 @@ fun SeedMapScreen(
                 onShowOrePicker = { showOrePicker = true },
                 onJump = viewModel::jumpTo,
                 onClearSelection = viewModel::clearSelection,
+                onCyclePicked = viewModel::cyclePicked,
+                onOpenDetails = { marker ->
+                    viewModel.openStructureDetails(marker)
+                    showDetails = true
+                },
+                onClearPicked = viewModel::clearPicked,
             )
             MapActionBar(
                 state = state,
@@ -277,7 +284,29 @@ fun SeedMapScreen(
                 onSeedChange = viewModel::onSeedTextChange,
                 onApply = {
                     viewModel.applySeed()
+                    rememberSeed()
                     showSeedSheet = false
+                },
+                history = seedHistory,
+                onPickHistory = { entry ->
+                    viewModel.onSeedTextChange(entry.seedText)
+                    GameVersions.find(entry.versionLabel)?.let(viewModel::setVersion)
+                    viewModel.applySeed()
+                    rememberSeed()
+                    showSeedSheet = false
+                },
+                onRemoveHistory = { entry ->
+                    scope.launch {
+                        seedHistory = withContext(Dispatchers.IO) {
+                            SeedHistoryStore.remove(context, entry.identity())
+                        }
+                    }
+                },
+                onClearHistory = {
+                    scope.launch {
+                        withContext(Dispatchers.IO) { SeedHistoryStore.clear(context) }
+                        seedHistory = emptyList()
+                    }
                 },
                 onVersionChange = viewModel::setVersion,
                 onDimensionChange = viewModel::setDimension,
@@ -411,6 +440,10 @@ private fun SeedSheet(
     onApply: () -> Unit,
     onVersionChange: (GameVersion) -> Unit,
     onDimensionChange: (Dimension) -> Unit,
+    history: List<SeedHistoryEntry> = emptyList(),
+    onPickHistory: (SeedHistoryEntry) -> Unit = {},
+    onRemoveHistory: (SeedHistoryEntry) -> Unit = {},
+    onClearHistory: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -499,6 +532,54 @@ private fun SeedSheet(
             }
         }
 
+        if (history.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "最近用过",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onClearHistory) { Text("清空") }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                history.take(8).forEach { entry ->
+                    Surface(
+                        onClick = { onPickHistory(entry) },
+                        shape = MaterialTheme.shapes.small,
+                        color = Color.Transparent,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = entry.seedText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                )
+                                Text(
+                                    text = entry.versionLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            IconButton(
+                                onClick = { onRemoveHistory(entry) },
+                                modifier = Modifier.size(32.dp),
+                            ) {
+                                Icon(Icons.Filled.Close, contentDescription = "删除", modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Text(
             text = "解析后种子：${state.seed}" +
                 if (state.renderMillis > 0) " · 渲染 ${state.renderMillis} ms" else "",
@@ -525,11 +606,16 @@ private fun SeedMapCanvas(
     onShowOrePicker: () -> Unit,
     onJump: (Double, Double) -> Unit,
     onClearSelection: () -> Unit,
+    onCyclePicked: (Int) -> Unit = {},
+    onOpenDetails: (StructureMarker) -> Unit = {},
+    onClearPicked: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val structureIcons = remember(context) { MapIcons.structureBitmaps(context) }
     var flingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val latestCamera = androidx.compose.runtime.rememberUpdatedState(state.camera)
@@ -727,7 +813,7 @@ private fun SeedMapCanvas(
             }
             drawMeasureLine(state, size, textMeasurer)
             drawPin(state, size)
-            drawStructureMarkers(state, size)
+            drawStructureMarkers(state, size, structureIcons)
             drawRulers(state.camera, textMeasurer, state.gridEnabled)
             drawCrosshair(size)
         }
@@ -816,6 +902,93 @@ private fun SeedMapCanvas(
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )
+        }
+
+        if (state.picked.isNotEmpty()) {
+            val marker = state.picked[state.pickedIndex.coerceIn(0, state.picked.lastIndex)]
+            val multi = state.picked.size > 1
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(12.dp),
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    if (multi) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(onClick = { onCyclePicked(-1) }) {
+                                Text("‹")
+                            }
+                            Text(
+                                text = "${state.pickedIndex + 1} / ${state.picked.size}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontFamily = FontFamily.Monospace,
+                            )
+                            TextButton(onClick = { onCyclePicked(1) }) {
+                                Text("›")
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MapIcons.structure(marker.type)?.let { res ->
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(res),
+                                contentDescription = null,
+                                modifier = Modifier.size(26.dp),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = marker.type.label,
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = buildString {
+                                    append("X ${marker.x}")
+                                    append("   Z ${marker.z}")
+                                    state.pickedY?.let {
+                                        append("   Y ")
+                                        append(it)
+                                    }
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontFamily = FontFamily.Monospace,
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                clipboard.setText(
+                                    androidx.compose.ui.text.AnnotatedString("${marker.x} ${marker.z}"),
+                                )
+                            },
+                        ) {
+                            Text("复制")
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(
+                            onClick = {
+                                onOpenDetails(marker)
+                            },
+                        ) {
+                            Text("详情")
+                        }
+                        TextButton(onClick = { onClearPicked() }) {
+                            Text("关闭")
+                        }
+                    }
+                }
+            }
         }
 
         state.selected?.let { point ->
@@ -1148,9 +1321,12 @@ private fun niceStep(targetBlocks: Float): Float {
     return factor * magnitude
 }
 
+private val ICON_SIZE = 20.dp
+
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarkers(
     state: MapUiState,
     size: androidx.compose.ui.geometry.Size,
+    icons: Map<StructureType, ImageBitmap>,
 ) {
     if (state.structures.isEmpty() && state.oreMarkers.isEmpty()) return
     val bpp = state.camera.blocksPerPixel
@@ -1171,6 +1347,32 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
             if (bpp <= 64f) {
                 drawCircle(marker.type.color.copy(alpha = 0.55f), 2.5.dp.toPx(), center)
             }
+            return@forEach
+        }
+        if (bpp > marker.type.maxBlocksPerPixel) return@forEach
+        val icon = icons[marker.type]
+        if (icon != null) {
+            val side = ICON_SIZE.toPx()
+            val selected = state.picked.any { it.key == marker.key }
+            if (selected) {
+                drawCircle(
+                    color = marker.type.color.copy(alpha = 0.35f),
+                    radius = side * 0.75f,
+                    center = center,
+                )
+            }
+            drawRoundRect(
+                color = Color.White.copy(alpha = 0.94f),
+                topLeft = Offset(px - side / 2f, py - side / 2f),
+                size = androidx.compose.ui.geometry.Size(side, side),
+                cornerRadius = CornerRadius(side * 0.24f, side * 0.24f),
+            )
+            drawImage(
+                image = icon,
+                dstOffset = IntOffset((px - side / 2f).roundToInt(), (py - side / 2f).roundToInt()),
+                dstSize = IntSize(side.roundToInt(), side.roundToInt()),
+                filterQuality = FilterQuality.Medium,
+            )
         } else {
             drawCircle(Color.White.copy(alpha = 0.92f), radius + 1.8f, center)
             drawCircle(marker.type.color, radius, center)

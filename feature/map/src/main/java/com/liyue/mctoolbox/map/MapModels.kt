@@ -108,7 +108,9 @@ data class PointInfo(
 
 data class LegendEntry(val id: Int, val name: String, val color: androidx.compose.ui.graphics.Color, val cells: Int)
 
-data class StructureMarker(val type: StructureType, val x: Int, val z: Int)
+data class StructureMarker(val type: StructureType, val x: Int, val z: Int) {
+    val key: String get() = "${'$'}{type.name}:${'$'}x:${'$'}z"
+}
 
 /** One ore block drawn on the map, tagged with the ore it belongs to. */
 data class OreMarker(val kind: com.liyue.mctoolbox.seedgen.OreKind, val x: Int, val y: Int, val z: Int)
@@ -196,6 +198,11 @@ data class MapUiState(
     val pinX: Double? = null,
     val pinZ: Double? = null,
     val layersClipped: Boolean = false,
+    /** Structures under the last tap, in distance order; more than one means the pager shows. */
+    val picked: List<StructureMarker> = emptyList(),
+    val pickedIndex: Int = 0,
+    /** Resolved Y of the picked structure, when the version can tell us. */
+    val pickedY: Int? = null,
     val error: String? = null,
 ) {
     val version: McVersion get() = gameVersion.engine

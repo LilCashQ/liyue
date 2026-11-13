@@ -44,6 +44,7 @@ class SeedMapViewModel @Inject constructor(
     private var undergroundJob: Job? = null
     private var overlayJob: Job? = null
     private var tileJob: Job? = null
+    private var pickedYJob: Job? = null
 
     /** LRU of rendered tiles, keyed by world grid position and render options. */
     private val tileCache = object : LinkedHashMap<TileKey, MapTile>(64, 0.75f, true) {
@@ -158,6 +159,84 @@ class SeedMapViewModel @Inject constructor(
     }
 
     fun clearSelection() = _state.update { it.copy(selected = null) }
+
+    /**
+     * Tapping a spot gathers every structure within the pick radius so the card
+     * can page through the ones stacked on top of each other.
+     */
+    fun pickStructuresAt(x: Int, z: Int, radiusBlocks: Int): Int {
+        val snapshot = _state.value
+        val r2 = radiusBlocks.toLong() * radiusBlocks
+        val hits = snapshot.structures
+            .filter { it.type != StructureType.SLIME_CHUNK }
+            .filter { snapshot.camera.blocksPerPixel <= it.type.maxBlocksPerPixel }
+            .map { marker ->
+                val dx = (marker.x - x).toLong()
+                val dz = (marker.z - z).toLong()
+                marker to dx * dx + dz * dz
+            }
+            .filter { it.second <= r2 }
+            .sortedBy { it.second }
+            .map { it.first }
+            .take(8)
+        _state.update {
+            it.copy(picked = hits, pickedIndex = 0, pickedY = null, selected = null)
+        }
+        if (hits.isNotEmpty()) resolvePickedY()
+        return hits.size
+    }
+
+    fun cyclePicked(delta: Int) {
+        val snapshot = _state.value
+        if (snapshot.picked.isEmpty()) return
+        val next = Math.floorMod(snapshot.pickedIndex + delta, snapshot.picked.size)
+        _state.update { it.copy(pickedIndex = next, pickedY = null) }
+        resolvePickedY()
+    }
+
+    fun clearPicked() = _state.update { it.copy(picked = emptyList(), pickedIndex = 0, pickedY = null) }
+
+    fun pickedMarker(): StructureMarker? {
+        val snapshot = _state.value
+        return snapshot.picked.getOrNull(snapshot.pickedIndex)
+    }
+
+    /** Best-effort Y for the picked structure; some versions only know the surface. */
+    fun resolvePickedY() {
+        val marker = pickedMarker() ?: return
+        val snapshot = _state.value
+        pickedYJob?.cancel()
+        pickedYJob = viewModelScope.launch {
+            val y = withContext(Dispatchers.Default) {
+                runCatching { resolveMarkerY(snapshot, marker) }.getOrNull()
+            }
+            if (pickedMarker()?.key == marker.key) {
+                _state.update { it.copy(pickedY = y) }
+            }
+        }
+    }
+
+    private fun resolveMarkerY(state: MapUiState, marker: StructureMarker): Int? {
+        val underground = marker.type == StructureType.ANCIENT_CITY ||
+            marker.type == StructureType.TRIAL_CHAMBERS ||
+            marker.type == StructureType.MINESHAFT ||
+            marker.type == StructureType.GEODE
+        if (underground) {
+            val json = engine.structureDetailsBlocking(
+                seed = state.seed,
+                version = state.version,
+                dimension = marker.type.dimension,
+                x = marker.x,
+                z = marker.z,
+                featureBit = marker.type.featureBit,
+            ) ?: return null
+            val y = StructureDetails.parse(json)?.variant?.offsetY ?: return null
+            return if (y in -64..320 && y != 320) y else null
+        }
+        if (marker.type.dimension != Dimension.OVERWORLD) return null
+        return engine.surfaceHeightBlocking(state.seed, state.version, marker.x, marker.z)
+    }
+
 
     fun setTerrainEnabled(enabled: Boolean) {
         if (enabled == _state.value.terrainEnabled) return
