@@ -2087,13 +2087,47 @@ private fun StructureDetailsSheet(
             }
         }
 
+        val portalRoom = details.pieces.firstOrNull { it.endPortalRoom }
+        if (portalRoom != null) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "末地传送门房",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    DetailRow(
+                        "坐标",
+                        "${portalRoom.x}, ${portalRoom.y}, ${portalRoom.z}",
+                    )
+                    DetailRow("已激活", "${portalRoom.portalEyes} / 12 眼")
+                    Text(
+                        text = if (portalRoom.portalEyes >= 12) {
+                            "12 只眼睛全在，跳进去直接去末地。"
+                        } else {
+                            "还差 ${12 - portalRoom.portalEyes} 只末影之眼，去之前记得带。"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         if (details.pieces.isNotEmpty()) {
             Text(
                 text = "结构片段（${details.pieces.size}）",
                 style = MaterialTheme.typography.labelLarge,
             )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                details.pieces.take(24).forEach { piece ->
+                val ordered = details.pieces.sortedByDescending { it.endPortalRoom }
+                ordered.take(24).forEach { piece ->
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         tonalElevation = 0.dp,
@@ -2134,9 +2168,9 @@ private fun StructureDetailsSheet(
                         }
                     }
                 }
-                if (details.pieces.size > 24) {
+                if (ordered.size > 24) {
                     Text(
-                        text = "还有 ${details.pieces.size - 24} 个片段未列出",
+                        text = "还有 ${ordered.size - 24} 个片段未列出",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
