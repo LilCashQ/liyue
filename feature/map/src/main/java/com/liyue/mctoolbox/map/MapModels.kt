@@ -108,7 +108,7 @@ data class PointInfo(
 
 data class LegendEntry(val id: Int, val name: String, val color: androidx.compose.ui.graphics.Color, val cells: Int)
 
-data class StructureMarker(val type: StructureType, val x: Int, val z: Int) {
+data class StructureMarker(val type: StructureType, val x: Int, val z: Int, val biomeId: Int? = null) {
     val key: String get() = "${'$'}{type.name}:${'$'}x:${'$'}z"
 }
 

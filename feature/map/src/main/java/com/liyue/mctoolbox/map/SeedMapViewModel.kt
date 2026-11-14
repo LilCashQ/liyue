@@ -880,7 +880,21 @@ class SeedMapViewModel @Inject constructor(
                 }
                 val markers = found.mapNotNull { hit ->
                     StructureType.fromFeatureBit(hit.kind)?.let { type ->
-                        StructureMarker(type, hit.x, hit.z)
+                        val biome = if (type == StructureType.VILLAGE) {
+                            runCatching {
+                                engine.biomeAtRawBlocking(
+                                    seed = snapshot.seed,
+                                    version = snapshot.version,
+                                    dimension = snapshot.dimension,
+                                    x = hit.x,
+                                    y = 63,
+                                    z = hit.z,
+                                )
+                            }.getOrNull()
+                        } else {
+                            null
+                        }
+                        StructureMarker(type, hit.x, hit.z, biome)
                     }
                 }
                 val spawn = if (

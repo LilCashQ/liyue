@@ -618,6 +618,7 @@ private fun SeedMapCanvas(
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     val structureIcons = remember(context) { MapIcons.structureBitmaps(context) }
+    val villageIcons = remember(context) { MapIcons.villageBitmaps(context) }
     var flingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val latestCamera = androidx.compose.runtime.rememberUpdatedState(state.camera)
@@ -815,7 +816,7 @@ private fun SeedMapCanvas(
             }
             drawMeasureLine(state, size, textMeasurer)
             drawPin(state, size)
-            drawStructureMarkers(state, size, structureIcons)
+            drawStructureMarkers(state, size, structureIcons, villageIcons)
             drawRulers(state.camera, textMeasurer, state.gridEnabled)
             drawCrosshair(size)
         }
@@ -1329,6 +1330,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
     state: MapUiState,
     size: androidx.compose.ui.geometry.Size,
     icons: Map<StructureType, ImageBitmap>,
+    villageIcons: Map<Int, ImageBitmap> = emptyMap(),
 ) {
     if (state.structures.isEmpty() && state.oreMarkers.isEmpty()) return
     val bpp = state.camera.blocksPerPixel
@@ -1361,7 +1363,11 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
         val cellSize = iconSide.coerceAtLeast(1f)
         val cell = ((px / cellSize).toInt().toLong() shl 32) or
             ((py / cellSize).toInt().toLong() and 0xFFFFFFFFL)
-        val icon = icons[marker.type]
+        val icon = if (marker.type == StructureType.VILLAGE) {
+            villageIcons[MapIcons.village(marker.biomeId)]
+        } else {
+            icons[marker.type]
+        }
         if (icon != null) {
             if (!drawnCells.add(cell)) return@forEach
             val side = iconSide

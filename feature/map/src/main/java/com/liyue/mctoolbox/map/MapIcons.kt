@@ -25,25 +25,6 @@ import com.liyue.mctoolbox.seedgen.OreKind
  */
 internal object MapIcons {
 
-    private val ORES = intArrayOf(
-        R.drawable.ore_00, // diamond
-        R.drawable.ore_01, // iron
-        R.drawable.ore_02, // gold
-        R.drawable.ore_03, // redstone
-        R.drawable.ore_04, // lapis
-        R.drawable.ore_05, // coal
-        R.drawable.ore_06, // copper
-        R.drawable.ore_07, // emerald
-        R.drawable.ore_08, // quartz
-        R.drawable.ore_09, // debris
-        R.drawable.ore_10, // geode
-        R.drawable.ore_11, // lava pool
-        R.drawable.ore_12, // dungeon
-        R.drawable.ore_13, // cave
-        R.drawable.ore_14, // magma
-        R.drawable.ore_15, // mountain section
-    )
-
     private val BIOMES = intArrayOf(
         R.drawable.bio_00, // taiga
         R.drawable.bio_01, // birch forest
@@ -71,6 +52,24 @@ internal object MapIcons {
             runCatching {
                 BitmapFactory.decodeResource(context.resources, res)?.asImageBitmap()
             }.getOrNull()?.let { out[type] = it }
+        }
+        return out
+    }
+
+    /** Village icons keyed by drawable id, since the pick depends on the biome. */
+    fun villageBitmaps(context: Context): Map<Int, ImageBitmap> {
+        val ids = listOf(
+            R.drawable.cb_village_plains,
+            R.drawable.cb_village_desert,
+            R.drawable.cb_village_savanna,
+            R.drawable.cb_village_snowy,
+            R.drawable.cb_village_taiga,
+        )
+        val out = LinkedHashMap<Int, ImageBitmap>()
+        ids.forEach { id ->
+            runCatching {
+                BitmapFactory.decodeResource(context.resources, id)?.asImageBitmap()
+            }.getOrNull()?.let { out[id] = it }
         }
         return out
     }
@@ -104,22 +103,30 @@ internal object MapIcons {
         StructureType.SLIME_CHUNK -> R.drawable.cb_slime
     }
 
-    fun ore(kind: OreKind): Int? = ORES.getOrNull(
-        when (kind) {
-            OreKind.DIAMOND -> 0
-            OreKind.IRON -> 1
-            OreKind.IRON_VEIN -> 13
-            OreKind.GOLD -> 2
-            OreKind.REDSTONE -> 3
-            OreKind.LAPIS -> 4
-            OreKind.COAL -> 5
-            OreKind.COPPER -> 6
-            OreKind.COPPER_VEIN -> 15
-            OreKind.EMERALD -> 7
-            OreKind.QUARTZ, OreKind.NETHER_GOLD -> 8
-            OreKind.DEBRIS -> 9
-        }
-    )
+    fun ore(kind: OreKind): Int? = when (kind) {
+        OreKind.DIAMOND -> R.drawable.ore_diamond
+        OreKind.IRON -> R.drawable.ore_iron
+        OreKind.IRON_VEIN -> R.drawable.ore_iron_vein
+        OreKind.GOLD -> R.drawable.ore_gold
+        OreKind.REDSTONE -> R.drawable.ore_redstone
+        OreKind.LAPIS -> R.drawable.ore_lapis
+        OreKind.COAL -> R.drawable.ore_coal
+        OreKind.COPPER -> R.drawable.ore_copper
+        OreKind.COPPER_VEIN -> R.drawable.ore_copper_vein
+        OreKind.EMERALD -> R.drawable.ore_emerald
+        OreKind.QUARTZ -> R.drawable.ore_quartz
+        OreKind.NETHER_GOLD -> R.drawable.ore_nether_gold
+        OreKind.DEBRIS -> R.drawable.ore_debris
+    }
+
+    /** Villages wear the biome they spawned in, like Chunkbase does. */
+    fun village(biomeId: Int?): Int = when (biomeId) {
+        2 -> R.drawable.cb_village_desert
+        35, 36, 163 -> R.drawable.cb_village_savanna
+        12, 30, 140 -> R.drawable.cb_village_snowy
+        5, 19, 32, 33 -> R.drawable.cb_village_taiga
+        else -> R.drawable.cb_village_plains
+    }
 
     /** Maps a version-aware biome name (cubiomes spelling) to a family icon. */
     fun biome(rawName: String): Int? {
