@@ -43,9 +43,10 @@ internal fun StructurePreview3D(
 ) {
     val boxes = remember(details) { layoutBoxes(details) }
     val chests = remember(details) { layoutChests(details) }
+    val boundsOnly = details.pieces.isEmpty() && boxes.isNotEmpty()
     if (boxes.isEmpty()) {
         Text(
-            text = "这个结构没有可用的布局数据，无法画 3D 预览。",
+            text = "这个结构在当前版本下连包围盒都没有，画不了 3D。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = modifier,
@@ -184,7 +185,8 @@ internal fun StructurePreview3D(
             }
         }
         Text(
-            text = "拖动旋转 · 双指缩放 · ${boxes.size} 个片段" +
+            text = "拖动旋转 · 双指缩放 · " +
+                (if (boundsOnly) "整体包围盒（该类型没有逐片段布局）" else "${boxes.size} 个片段") +
                 if (boxes.any { it.endPortalRoom }) " · 蓝框=末地门房" else "",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -263,6 +265,29 @@ private fun layoutBoxes(details: StructureDetails): List<PreviewBox> {
                 chest = true,
             ),
         )
+    }
+    if (boxes.isEmpty()) {
+        details.variant?.let { variant ->
+            if (variant.sizeX > 0 && variant.sizeZ > 0) {
+                // Some generators only report a footprint; assume a storey height.
+                val height = if (variant.sizeY > 0) variant.sizeY else 16
+                val x0 = variant.offsetX.toFloat()
+                val y0 = variant.offsetY.toFloat()
+                val z0 = variant.offsetZ.toFloat()
+                boxes.add(
+                    PreviewBox(
+                        minX = x0,
+                        minY = y0,
+                        minZ = z0,
+                        maxX = x0 + variant.sizeX,
+                        maxY = y0 + height,
+                        maxZ = z0 + variant.sizeZ,
+                        endPortalRoom = false,
+                        chest = false,
+                    ),
+                )
+            }
+        }
     }
     return boxes
 }

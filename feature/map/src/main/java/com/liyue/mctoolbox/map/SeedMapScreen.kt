@@ -2221,6 +2221,8 @@ private fun StructureDetailsSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(max = 620.dp)
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
             .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -2261,7 +2263,7 @@ private fun StructureDetailsSheet(
             return@Column
         }
 
-        if (details.pieces.isNotEmpty()) {
+        if (details.pieces.isNotEmpty() || details.variant != null) {
             StructurePreview3D(
                 details = details,
                 modifier = Modifier.fillMaxWidth(),
