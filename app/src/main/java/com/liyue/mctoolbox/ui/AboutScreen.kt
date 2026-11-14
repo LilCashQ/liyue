@@ -99,6 +99,7 @@ fun AboutScreen(
     user: AuthUser?,
     onLogin: () -> Unit,
     onLogout: () -> Unit,
+    onOpenLicenses: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var dialog by remember { mutableStateOf<AboutDialog?>(null) }
@@ -166,6 +167,10 @@ fun AboutScreen(
         item { SectionLabel("支持") }
         items(supportRows) { row ->
             RowCard(row) {
+                if (row.title == "开源致谢") {
+                    onOpenLicenses()
+                    return@RowCard
+                }
                 dialog = if (row.title == "捐赠支持") {
                     AboutDialog(
                         title = "捐赠支持",

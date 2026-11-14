@@ -44,11 +44,12 @@ import com.liyue.mctoolbox.map.finder.FinderScreen
 import com.liyue.mctoolbox.ui.AboutScreen
 import com.liyue.mctoolbox.ui.AuthScreen
 import com.liyue.mctoolbox.ui.ConvertScreen
+import com.liyue.mctoolbox.ui.LicensesScreen
 import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, DEBUG, AUTH }
+private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, LICENSES, DEBUG, AUTH }
 private enum class Tab { HOME, TOOLS, ABOUT }
 
 @AndroidEntryPoint
@@ -173,6 +174,7 @@ class MainActivity : ComponentActivity() {
                         },
                     )
                     Screen.CONVERT -> ConvertScreen(onBack = { screen = Screen.TABS })
+                    Screen.LICENSES -> LicensesScreen(onBack = { screen = Screen.TABS })
                     Screen.DEBUG -> SeedGenScreen(onBack = { screen = Screen.TABS })
                     Screen.AUTH -> AuthScreen(onBack = { screen = Screen.TABS })
                     Screen.TABS -> MainTabs(
@@ -183,6 +185,7 @@ class MainActivity : ComponentActivity() {
                         onOpenTool = ::openTool,
                         onLogin = { screen = Screen.AUTH },
                         onLogout = { authViewModel.logout() },
+                        onOpenLicenses = { screen = Screen.LICENSES },
                     )
                 }
             }
@@ -199,6 +202,7 @@ private fun MainTabs(
     onOpenTool: (ToolEntry) -> Unit,
     onLogin: () -> Unit,
     onLogout: () -> Unit,
+    onOpenLicenses: () -> Unit,
 ) {
     Scaffold(
         bottomBar = {
@@ -242,6 +246,7 @@ private fun MainTabs(
                     user = user,
                     onLogin = onLogin,
                     onLogout = onLogout,
+                    onOpenLicenses = onOpenLicenses,
                 )
             }
         }
