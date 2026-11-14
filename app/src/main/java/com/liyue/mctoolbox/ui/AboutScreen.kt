@@ -76,7 +76,7 @@ private data class AboutRow(
 
 private val supportRows = listOf(
     AboutRow("捐赠支持", "攒一台服务器，让地图算在云上", Icons.Filled.Favorite),
-    AboutRow("开源致谢", "cubiomes 等开源项目", Icons.Filled.Star),
+    AboutRow("开源致谢", "16 个开源项目的用途、许可证与仓库地址", Icons.Filled.Star),
 )
 
 private val policyRows = listOf(
