@@ -8,6 +8,7 @@ import com.frenetic.litechunk.api.ConversionOptions
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
@@ -99,6 +100,49 @@ object WorldConverter {
             dir.isDirectory && (File(dir, "level.dat").isFile || File(dir, "db").isDirectory)
         }?.let { return it }
         return root
+    }
+
+
+    /** Expands a picked .zip / .mcworld into [destination] and returns the world folder. */
+    fun unpack(context: Context, uri: Uri, destination: File, displayName: String): File? {
+        destination.deleteRecursively()
+        destination.mkdirs()
+        val zipFile = File(destination, "source.zip")
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(zipFile).use { output -> input.copyTo(output) }
+            } ?: return null
+        }.onFailure { return null }
+        if (zipFile.length() == 0L) return null
+        val extract = File(destination, "content")
+        extract.mkdirs()
+        runCatching {
+            ZipInputStream(zipFile.inputStream().buffered()).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    val name = entry.name.replace('\\', '/')
+                    if (name.startsWith("__MACOSX/") || name.contains("../")) {
+                        entry = zip.nextEntry
+                        continue
+                    }
+                    val target = File(extract, name)
+                    if (entry.isDirectory) {
+                        target.mkdirs()
+                    } else {
+                        target.parentFile?.mkdirs()
+                        FileOutputStream(target).use { output -> zip.copyTo(output) }
+                    }
+                    zip.closeEntry()
+                    entry = zip.nextEntry
+                }
+            }
+        }.onFailure { return null }
+        zipFile.delete()
+        if (File(extract, "level.dat").isFile || File(extract, "db").isDirectory) return extract
+        extract.listFiles()?.firstOrNull { dir ->
+            dir.isDirectory && (File(dir, "level.dat").isFile || File(dir, "db").isDirectory)
+        }?.let { return it }
+        return if (extract.listFiles()?.isNotEmpty() == true) extract else null
     }
 
     fun detect(context: Context, worldDir: File) = runCatching {
