@@ -159,6 +159,9 @@ data class MapUiState(
     val detailsLoading: Boolean = false,
     /** Resolved display name for the biome the structure spawned in. */
     val detailsBiomeName: String? = null,
+    val containerLootId: Int? = null,
+    val containerLoot: List<StructureItem>? = null,
+    val containerLootLoading: Boolean = false,
     /** Y level of the underground preview slice. */
     val undergroundY: Int = 15,
     /** Bit mask: 1 = solid blocks, 2 = caves, 4 = ravines. */

@@ -1,6 +1,7 @@
 package com.liyue.mctoolbox.map
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,8 +38,11 @@ import kotlin.math.sin
 internal fun StructurePreview3D(
     details: StructureDetails,
     modifier: Modifier = Modifier,
+    selectedContainerId: Int? = null,
+    onSelectContainer: (Int?) -> Unit = {},
 ) {
     val boxes = remember(details) { layoutBoxes(details) }
+    val chests = remember(details) { layoutChests(details) }
     if (boxes.isEmpty()) {
         Text(
             text = "这个结构没有可用的布局数据，无法画 3D 预览。",
@@ -64,6 +68,22 @@ internal fun StructurePreview3D(
                         pitch = (pitch + pan.y * 0.01f).coerceIn(-1.4f, 1.4f)
                         zoom = (zoom * gestureZoom).coerceIn(0.35f, 4f)
                     }
+                }
+                .pointerInput(details, chests) {
+                    detectTapGestures { tap ->
+                        onSelectContainer(
+                            nearestChestId(
+                                chests = chests,
+                                bounds = bounds,
+                                yaw = yaw,
+                                pitch = pitch,
+                                zoom = zoom,
+                                width = size.width.toFloat(),
+                                height = size.height.toFloat(),
+                                tap = tap,
+                            ),
+                        )
+                    }
                 },
         ) {
             val ink = MaterialTheme.colorScheme.onSurface
@@ -79,18 +99,12 @@ internal fun StructurePreview3D(
                 val sp = sin(pitch)
 
                 fun project(x: Float, y: Float, z: Float): Triple<Float, Float, Float> {
-                    val dx = x - bounds.centerX
-                    val dy = y - bounds.centerY
-                    val dz = z - bounds.centerZ
-                    val x1 = dx * cy - dz * sy
-                    val z1 = dx * sy + dz * cy
-                    val y1 = dy * cp - z1 * sp
-                    val z2 = dy * sp + z1 * cp
-                    val perspective = 1f / (1f + z2 / (radius * 3.2f))
+                    val rotated = rotateForPreview(x, y, z, bounds, cy, sy, cp, sp)
+                    val perspective = 1f / (1f + rotated.z / (radius * 3.2f))
                     return Triple(
-                        originX + x1 * scale * perspective,
-                        originY - y1 * scale * perspective,
-                        z2,
+                        originX + rotated.x * scale * perspective,
+                        originY - rotated.y * scale * perspective,
+                        rotated.z,
                     )
                 }
 
@@ -144,6 +158,28 @@ internal fun StructurePreview3D(
                         }
                         drawPath(top, accent.copy(alpha = 0.35f))
                     }
+                }
+
+                // Chest X-ray: painted last, so walls never hide a chest.
+                chests.forEach { chest ->
+                    val p = project(chest.x, chest.y, chest.z)
+                    val radiusPx = if (chest.containerId == selectedContainerId) 7.5f else 5.5f
+                    val spot = Offset(p.first, p.second)
+                    if (spot.x < -20f || spot.y < -20f ||
+                        spot.x > size.width + 20f || spot.y > size.height + 20f
+                    ) {
+                        return@forEach
+                    }
+                    drawCircle(Color.White.copy(alpha = 0.9f), radiusPx + 1.6f, spot)
+                    drawCircle(
+                        color = if (chest.containerId == selectedContainerId) {
+                            accent
+                        } else {
+                            Color(0xFFC98A2B)
+                        },
+                        radius = radiusPx,
+                        center = spot,
+                    )
                 }
             }
         }
@@ -258,4 +294,78 @@ private fun boundsOf(boxes: List<PreviewBox>): PreviewBounds {
         centerZ = centerZ,
         radius = maxOf(extentX, maxOf(extentY, extentZ)).coerceAtLeast(4f),
     )
+}
+
+private data class PreviewChest(
+    val containerId: Int,
+    val x: Float,
+    val y: Float,
+    val z: Float,
+)
+
+private data class RotatedPoint(val x: Float, val y: Float, val z: Float)
+
+private fun rotateForPreview(
+    x: Float,
+    y: Float,
+    z: Float,
+    bounds: PreviewBounds,
+    cy: Float,
+    sy: Float,
+    cp: Float,
+    sp: Float,
+): RotatedPoint {
+    val dx = x - bounds.centerX
+    val dy = y - bounds.centerY
+    val dz = z - bounds.centerZ
+    val x1 = dx * cy - dz * sy
+    val z1 = dx * sy + dz * cy
+    val y1 = dy * cp - z1 * sp
+    val z2 = dy * sp + z1 * cp
+    return RotatedPoint(x1, y1, z2)
+}
+
+private fun layoutChests(details: StructureDetails): List<PreviewChest> =
+    details.containers.map { container ->
+        val host = details.pieces.firstOrNull { it.id == container.piece }
+        PreviewChest(
+            containerId = container.id,
+            x = container.x.toFloat(),
+            y = ((host?.y ?: 0) + 0.5f),
+            z = container.z.toFloat(),
+        )
+    }
+
+/** Cheapest way to tell which chest the finger landed on, in screen space. */
+private fun nearestChestId(
+    chests: List<PreviewChest>,
+    bounds: PreviewBounds,
+    yaw: Float,
+    pitch: Float,
+    zoom: Float,
+    width: Float,
+    height: Float,
+    tap: Offset,
+): Int? {
+    if (chests.isEmpty()) return null
+    val radius = bounds.radius.coerceAtLeast(1f)
+    val scale = min(width, height) * 0.44f / radius * zoom
+    val cy = cos(yaw)
+    val sy = sin(yaw)
+    val cp = cos(pitch)
+    val sp = sin(pitch)
+    var best: Int? = null
+    var bestDistance = 40f
+    chests.forEach { chest ->
+        val rotated = rotateForPreview(chest.x, chest.y, chest.z, bounds, cy, sy, cp, sp)
+        val perspective = 1f / (1f + rotated.z / (radius * 3.2f))
+        val px = width / 2f + rotated.x * scale * perspective
+        val py = height / 2f - rotated.y * scale * perspective
+        val distance = kotlin.math.hypot((tap.x - px).toDouble(), (tap.y - py).toDouble()).toFloat()
+        if (distance < bestDistance) {
+            bestDistance = distance
+            best = chest.containerId
+        }
+    }
+    return best
 }

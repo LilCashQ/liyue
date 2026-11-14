@@ -41,6 +41,7 @@ class SeedMapViewModel @Inject constructor(
     private var legendJob: Job? = null
     private var oreJob: Job? = null
     private var detailsJob: Job? = null
+    private var lootJob: Job? = null
     private var undergroundJob: Job? = null
     private var overlayJob: Job? = null
     private var tileJob: Job? = null
@@ -518,6 +519,42 @@ class SeedMapViewModel @Inject constructor(
                 _state.update { it.copy(details = null, detailsLoading = false) }
             }
         }
+    }
+
+    /** Rolls the loot table of one chest inside the open structure. */
+    fun loadContainerLoot(containerId: Int) {
+        val snapshot = _state.value
+        val target = snapshot.detailsTarget ?: return
+        lootJob?.cancel()
+        _state.update {
+            it.copy(containerLootId = containerId, containerLoot = null, containerLootLoading = true)
+        }
+        lootJob = viewModelScope.launch {
+            try {
+                val json = withContext(Dispatchers.Default) {
+                    engine.structureDetailsBlocking(
+                        seed = snapshot.seed,
+                        version = snapshot.version,
+                        dimension = target.type.dimension,
+                        x = target.x,
+                        z = target.z,
+                        featureBit = target.type.featureBit,
+                        container = containerId,
+                    )
+                }
+                val items = json?.let(StructureDetails::parse)?.items.orEmpty()
+                _state.update { it.copy(containerLoot = items, containerLootLoading = false) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (t: Throwable) {
+                _state.update { it.copy(containerLoot = emptyList(), containerLootLoading = false) }
+            }
+        }
+    }
+
+    fun clearContainerLoot() {
+        lootJob?.cancel()
+        _state.update { it.copy(containerLootId = null, containerLoot = null, containerLootLoading = false) }
     }
 
     fun closeStructureDetails() {

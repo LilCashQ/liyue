@@ -348,6 +348,8 @@ fun SeedMapScreen(
         ) {
             StructureDetailsSheet(
                 state = state,
+                onLoadLoot = viewModel::loadContainerLoot,
+                onClearLoot = viewModel::clearContainerLoot,
                 onJump = { x, z ->
                     viewModel.jumpTo(x.toDouble(), z.toDouble())
                     showDetails = false
@@ -2211,6 +2213,8 @@ private fun SettingsSwitch(label: String, checked: Boolean, onChange: (Boolean) 
 private fun StructureDetailsSheet(
     state: MapUiState,
     onJump: (Int, Int) -> Unit,
+    onLoadLoot: (Int) -> Unit = {},
+    onClearLoot: () -> Unit = {},
 ) {
     val target = state.detailsTarget
     val details = state.details
@@ -2258,7 +2262,76 @@ private fun StructureDetailsSheet(
         }
 
         if (details.pieces.isNotEmpty()) {
-            StructurePreview3D(details = details, modifier = Modifier.fillMaxWidth())
+            StructurePreview3D(
+                details = details,
+                modifier = Modifier.fillMaxWidth(),
+                selectedContainerId = state.containerLootId,
+                onSelectContainer = { id ->
+                    if (id == null) {
+                        onClearLoot()
+                    } else {
+                        onLoadLoot(id)
+                    }
+                },
+            )
+            if (details.containers.isNotEmpty()) {
+                Text(
+                    text = "宝箱透视：点橙色圆点看战利品（共 ${details.containers.size} 个）",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        val lootId = state.containerLootId
+        if (lootId != null) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "箱子 #$lootId 的战利品",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    when {
+                        state.containerLootLoading -> LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        state.containerLoot.isNullOrEmpty() -> Text(
+                            text = "这个箱子是空的，或者该版本没有战利品表数据。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        else -> state.containerLoot.forEach { item ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = itemLabel(item.id),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = "×${item.count}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        text = "按战利品表滚算的结果，和游戏里开箱一致（不含存档随机数偏移）。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
 
         val variant = details.variant
@@ -2594,5 +2667,41 @@ private fun UndergroundSheet(
             onClick = onRefresh,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+private val ITEM_NAMES = mapOf(
+    "golden_apple" to "金苹果",
+    "enchanted_golden_apple" to "附魔金苹果",
+    "golden_carrot" to "金胡萝卜",
+    "diamond" to "钻石",
+    "emerald" to "绿宝石",
+    "iron_ingot" to "铁锭",
+    "gold_ingot" to "金锭",
+    "lapis_lazuli" to "青金石",
+    "coal" to "煤炭",
+    "redstone" to "红石",
+    "bread" to "面包",
+    "wheat" to "小麦",
+    "saddle" to "鞍",
+    "name_tag" to "命名牌",
+    "book" to "书",
+    "iron_horse_armor" to "铁马铠",
+    "golden_horse_armor" to "金马铠",
+    "diamond_horse_armor" to "钻石马铠",
+    "music_disc_13" to "唱片《13》",
+    "music_disc_cat" to "唱片《cat》",
+    "enchanted_book" to "附魔书",
+    "iron_sword" to "铁剑",
+    "iron_pickaxe" to "铁镐",
+    "baked_potato" to "烤马铃薯",
+    "potion" to "药水",
+)
+
+private fun itemLabel(id: String): String {
+    val key = id.substringAfter(':')
+    ITEM_NAMES[key]?.let { return it }
+    return key.split('_').joinToString(" ") { part ->
+        part.replaceFirstChar { it.uppercaseChar() }
     }
 }
