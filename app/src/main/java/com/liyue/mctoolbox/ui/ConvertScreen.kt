@@ -1,6 +1,10 @@
 package com.liyue.mctoolbox.ui
 
+import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.os.ResultReceiver
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -61,6 +65,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.frenetic.litechunk.api.FormatGroup
+import com.liyue.mctoolbox.convert.ConvertService
 import com.liyue.mctoolbox.convert.WorldConverter
 import com.liyue.mctoolbox.map.LiYueActionButton
 import kotlinx.coroutines.Dispatchers
@@ -196,36 +201,55 @@ fun ConvertScreen(onBack: () -> Unit) {
         progress = 0f
         stage = "准备中…"
         message = null
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val outDir = File(context.cacheDir, "world-out")
-                    WorldConverter.convert(context, entry.dir, outDir, format) { value, text ->
-                        progress = value
-                        if (text.isNotEmpty()) stage = text
+        val ext = if (groupId == "BEDROCK") "mcworld" else "zip"
+        val name = (outputName.ifBlank { entry.name }).let {
+            if (it.endsWith(".zip") || it.endsWith(".mcworld")) it else "$it.$ext"
+        }
+        val outDir = File(context.cacheDir, "world-out")
+        val target = File(context.filesDir, "outputs").apply { mkdirs() }.let { File(it, name) }
+        val receiver = object : ResultReceiver(Handler(Looper.getMainLooper())) {
+            override fun onReceiveResult(resultCode: Int, resultData: android.os.Bundle?) {
+                if (resultData == null) return
+                when (resultData.getInt(ConvertService.KEY_KIND)) {
+                    ConvertService.KIND_PROGRESS -> {
+                        progress = resultData.getFloat(ConvertService.KEY_PROGRESS, 0f)
+                        stage = resultData.getString(ConvertService.KEY_STAGE).orEmpty().ifBlank { "转换中…" }
                     }
-                    val ext = if (groupId == "BEDROCK") "mcworld" else "zip"
-                    val name = (outputName.ifBlank { entry.name }).let {
-                        if (it.endsWith(".zip") || it.endsWith(".mcworld")) it else "$it.$ext"
+                    ConvertService.KIND_DONE -> {
+                        busy = false
+                        stage = ""
+                        message = "转换完成：$name"
+                        refreshOutputs()
+                        tab = ConvertTab.FILES
+                        if (deleteSource) {
+                            entry.dir.deleteRecursively()
+                            entries = entries.filterNot { it.id == entry.id }
+                        }
                     }
-                    val target = File(context.filesDir, "outputs").apply { mkdirs() }
-                    val zip = File(target, name)
-                    WorldConverter.zip(outDir, zip)
-                    outDir.deleteRecursively()
-                    zip
+                    ConvertService.KIND_ERROR -> {
+                        busy = false
+                        stage = ""
+                        message = if (resultData.getBoolean(ConvertService.KEY_OOM)) {
+                            "内存不足：这张地图太大，转换引擎吃不下。可以先把地图拆小，或换台内存更大的手机。"
+                        } else {
+                            "转换失败：" + resultData.getString(ConvertService.KEY_MESSAGE).orEmpty()
+                        }
+                    }
                 }
             }
+        }
+        val intent = Intent(context, ConvertService::class.java).apply {
+            putExtra(ConvertService.EXTRA_INPUT, entry.dir.absolutePath)
+            putExtra(ConvertService.EXTRA_OUTPUT, outDir.absolutePath)
+            putExtra(ConvertService.EXTRA_TARGET, target.absolutePath)
+            putExtra(ConvertService.EXTRA_FORMAT, format)
+            putExtra(ConvertService.EXTRA_RECEIVER, receiver)
+        }
+        runCatching {
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+        }.onFailure {
             busy = false
-            stage = ""
-            result.onSuccess { zip ->
-                message = "转换完成：${zip.name}（${zip.length() / 1024 / 1024} MB）"
-                refreshOutputs()
-                tab = ConvertTab.FILES
-                if (deleteSource) {
-                    entry.dir.deleteRecursively()
-                    entries = entries.filterNot { it.id == entry.id }
-                }
-            }.onFailure { message = "转换失败：${it.message}" }
+            message = "启动转换服务失败：${it.message}"
         }
     }
 

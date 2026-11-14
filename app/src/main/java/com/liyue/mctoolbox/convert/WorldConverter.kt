@@ -31,6 +31,10 @@ object WorldConverter {
             instance.setResourceDirectory(syncResources(context))
             val threads = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(1, 4)
             instance.setConcurrency(threads)
+            // Lean mode trades a little speed for a much smaller working set, which
+            // matters because these worlds are measured in gigabytes.
+            val bigHeap = Runtime.getRuntime().maxMemory() > 700L * 1024 * 1024
+            runCatching { instance.setLeanMode(!bigHeap) }
             engine = instance
             return instance
         }
