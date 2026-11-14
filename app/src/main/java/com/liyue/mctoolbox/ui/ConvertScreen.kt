@@ -66,6 +66,16 @@ fun ConvertScreen(onBack: () -> Unit) {
     var message by remember { mutableStateOf<String?>(null) }
     var showVersions by remember { mutableStateOf(false) }
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val list = withContext(Dispatchers.IO) {
+            runCatching {
+                WorldConverter.engine(context).formats().flatMap { it.versions.toList() }
+            }.getOrDefault(emptyList())
+        }
+        formats = list
+        if (target == null) target = list.firstOrNull()
+    }
+
     val pickTree = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri: Uri? ->
@@ -163,14 +173,10 @@ fun ConvertScreen(onBack: () -> Unit) {
             }
 
             ConvertSection(title = "目标版本", hint = "转换后写出的格式，越靠上越新") {
-                LiYueField(
-                    value = target?.let { "${it.id} · ${it.version ?: ""}" } ?: "未选择",
-                    onValueChange = {},
-                    readOnly = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !busy) { showVersions = !showVersions },
-                    label = { Text("输出格式") },
+                PickerRow(
+                    text = target?.let { "${it.id} · ${it.version ?: ""}" } ?: "未选择",
+                    enabled = !busy && formats.isNotEmpty(),
+                    onClick = { showVersions = !showVersions },
                 )
                 if (showVersions) {
                     LazyColumn(modifier = Modifier.heightIn(max = 260.dp)) {
@@ -281,6 +287,38 @@ private fun ConvertSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             content()
+        }
+    }
+}
+
+@Composable
+private fun PickerRow(text: String, enabled: Boolean, onClick: () -> Unit) {
+    androidx.compose.material3.Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (text == "未选择") {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                modifier = Modifier.weight(1f),
+            )
+            Text("▾", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

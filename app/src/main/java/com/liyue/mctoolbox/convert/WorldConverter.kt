@@ -61,30 +61,28 @@ object WorldConverter {
         destination.deleteRecursively()
         destination.mkdirs()
         val resolver = context.contentResolver
-        val name = DocumentsContract.getTreeDocumentId(tree).substringAfterLast(':')
-        val root = File(destination, name.ifBlank { "world" })
+        val rootDocId = DocumentsContract.getTreeDocumentId(tree)
+        val label = rootDocId.substringAfterLast(':').substringAfterLast('/')
+        val root = File(destination, label.ifBlank { "world" })
         root.mkdirs()
         var copied = 0
-        fun walk(dir: Uri, out: File) {
-            val children = DocumentsContract.buildChildDocumentsUriUsingTree(
-                tree,
-                DocumentsContract.getDocumentId(dir),
-            )
+        fun walk(documentId: String, out: File) {
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, documentId)
             resolver.query(children, null, null, null, null)?.use { cursor ->
                 val idIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
                 val nameIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                 val mimeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
                 while (cursor.moveToNext()) {
-                    val id = cursor.getString(idIndex)
+                    val id = cursor.getString(idIndex) ?: continue
                     val childName = cursor.getString(nameIndex) ?: continue
                     val mime = cursor.getString(mimeIndex) ?: ""
-                    val childUri = DocumentsContract.buildDocumentUriUsingTree(tree, id)
                     val child = File(out, childName)
                     if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
                         child.mkdirs()
-                        walk(childUri, child)
+                        walk(id, child)
                     } else {
                         runCatching {
+                            val childUri = DocumentsContract.buildDocumentUriUsingTree(tree, id)
                             resolver.openInputStream(childUri)?.use { input ->
                                 FileOutputStream(child).use { output -> input.copyTo(output) }
                             }
@@ -94,9 +92,8 @@ object WorldConverter {
                 }
             }
         }
-        walk(tree, root)
+        walk(rootDocId, root)
         if (copied == 0) return null
-        // A picked folder may be the world itself or a parent that holds one.
         if (File(root, "level.dat").isFile || File(root, "db").isDirectory) return root
         root.listFiles()?.firstOrNull { dir ->
             dir.isDirectory && (File(dir, "level.dat").isFile || File(dir, "db").isDirectory)
