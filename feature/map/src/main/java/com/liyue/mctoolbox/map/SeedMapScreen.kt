@@ -2218,6 +2218,7 @@ private fun StructureDetailsSheet(
 ) {
     val target = state.detailsTarget
     val details = state.details
+    GameNames.ensure(LocalContext.current)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -2315,7 +2316,7 @@ private fun StructureDetailsSheet(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = itemLabel(item.id),
+                                    text = GameNames.item(item.id),
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.weight(1f),
                                 )
@@ -2348,7 +2349,7 @@ private fun StructureDetailsSheet(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     DetailRow("朝向", "${variant.rotation}°")
-                    state.detailsBiomeName?.let { DetailRow("群系", it) }
+                    state.detailsBiomeName?.let { DetailRow("群系", GameNames.biome(it)) }
                     if (variant.size > 0) DetailRow("规模", "${variant.size}")
                     if (variant.sizeX > 0) {
                         DetailRow("包围盒", "${variant.sizeX} × ${variant.sizeY} × ${variant.sizeZ}")
@@ -2424,7 +2425,7 @@ private fun StructureDetailsSheet(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = piece.name,
+                                    text = GameNames.piece(piece.name),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontFamily = FontFamily.Monospace,
@@ -2672,38 +2673,3 @@ private fun UndergroundSheet(
     }
 }
 
-private val ITEM_NAMES = mapOf(
-    "golden_apple" to "金苹果",
-    "enchanted_golden_apple" to "附魔金苹果",
-    "golden_carrot" to "金胡萝卜",
-    "diamond" to "钻石",
-    "emerald" to "绿宝石",
-    "iron_ingot" to "铁锭",
-    "gold_ingot" to "金锭",
-    "lapis_lazuli" to "青金石",
-    "coal" to "煤炭",
-    "redstone" to "红石",
-    "bread" to "面包",
-    "wheat" to "小麦",
-    "saddle" to "鞍",
-    "name_tag" to "命名牌",
-    "book" to "书",
-    "iron_horse_armor" to "铁马铠",
-    "golden_horse_armor" to "金马铠",
-    "diamond_horse_armor" to "钻石马铠",
-    "music_disc_13" to "唱片《13》",
-    "music_disc_cat" to "唱片《cat》",
-    "enchanted_book" to "附魔书",
-    "iron_sword" to "铁剑",
-    "iron_pickaxe" to "铁镐",
-    "baked_potato" to "烤马铃薯",
-    "potion" to "药水",
-)
-
-private fun itemLabel(id: String): String {
-    val key = id.substringAfter(':')
-    ITEM_NAMES[key]?.let { return it }
-    return key.split('_').joinToString(" ") { part ->
-        part.replaceFirstChar { it.uppercaseChar() }
-    }
-}
