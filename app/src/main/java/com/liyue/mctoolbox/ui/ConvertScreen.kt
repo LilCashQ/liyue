@@ -118,7 +118,28 @@ fun ConvertScreen(onBack: () -> Unit) {
             ?.map { OutputEntry(it.name, it, it.length() / 1024 / 1024) } ?: emptyList()
     }
 
+    val askNotifications = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+
     LaunchedEffect(Unit) {
+        runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+            val power = context.getSystemService(android.os.PowerManager::class.java)
+            if (!power.isIgnoringBatteryOptimizations(context.packageName)) {
+                context.startActivity(
+                    Intent(
+                        android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        android.net.Uri.parse("package:" + context.packageName),
+                    ),
+                )
+            }
+        }
         refreshOutputs()
         val loaded = withContext(Dispatchers.IO) {
             runCatching {
