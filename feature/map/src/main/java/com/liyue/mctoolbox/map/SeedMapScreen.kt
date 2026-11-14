@@ -413,6 +413,13 @@ fun SeedMapScreen(
                 scanning = state.oreLoading,
                 scannedChunks = state.oreScannedChunks,
                 markerCount = state.oreMarkers.size,
+                ores = state.oreMarkers,
+                centerX = state.camera.centerX,
+                centerZ = state.camera.centerZ,
+                onJump = { x, z ->
+                    viewModel.jumpTo(x.toDouble(), z.toDouble())
+                    showOrePicker = false
+                },
                 onSelect = { kind ->
                     viewModel.setOreKind(kind)
                     showOrePicker = false
@@ -1334,13 +1341,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStructureMarker
 ) {
     if (state.structures.isEmpty() && state.oreMarkers.isEmpty()) return
     val bpp = state.camera.blocksPerPixel
-    // Ores sit under the structure pins so the pins stay readable.
-    state.oreMarkers.forEach { ore ->
-        val px = ((ore.x - state.camera.centerX) / bpp + size.width / 2f).toFloat()
-        val py = ((ore.z - state.camera.centerZ) / bpp + size.height / 2f).toFloat()
-        if (px < -4f || py < -4f || px > size.width + 4f || py > size.height + 4f) return@forEach
-        drawCircle(oreColor(ore.kind).copy(alpha = 0.85f), 1.6.dp.toPx(), Offset(px, py))
-    }
     val radius = 4.5.dp.toPx()
     // Wide views put hundreds of markers on screen; drawing a 20dp plate for
     // each buries the biome colours, so the sprite shrinks with zoom and
@@ -1560,8 +1560,19 @@ private fun OrePickerSheet(
     scanning: Boolean,
     scannedChunks: Int,
     markerCount: Int,
+    ores: List<OreMarker> = emptyList(),
+    centerX: Double = 0.0,
+    centerZ: Double = 0.0,
+    onJump: (Int, Int) -> Unit = { _, _ -> },
     onSelect: (com.liyue.mctoolbox.seedgen.OreKind?) -> Unit,
 ) {
+    val nearest = remember(ores, centerX, centerZ) {
+        ores.sortedBy {
+            val dx = it.x - centerX
+            val dz = it.z - centerZ
+            dx * dx + dz * dz
+        }.take(200)
+    }
     val kinds = com.liyue.mctoolbox.seedgen.OreKind.entries.filter { kind ->
         if (kind.dimension != dimension) return@filter false
         val min = kind.minVersion
@@ -1576,11 +1587,11 @@ private fun OrePickerSheet(
         Text("矿石图层", style = MaterialTheme.typography.titleMedium)
         Text(
             text = if (selected == null) {
-                "选一种矿石，在当前视野内标出矿脉位置（逐区块精确计算）。"
+                "选一种矿石，扫当前视野，结果以坐标列表给出（逐区块精确计算）。"
             } else if (scanning) {
                 "扫描中…"
             } else {
-                "已扫描 $scannedChunks 个区块 · $markerCount 个矿石方块"
+                "已扫描 $scannedChunks 个区块 · $markerCount 个方块，点坐标可跳过去"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1629,6 +1640,47 @@ private fun OrePickerSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                }
+            }
+            if (ores.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(14.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "矿石坐标（${ores.size}）",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        text = "按离视野中心的距离排序 · 点一行跳到那里",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                items(nearest) { ore ->
+                    val dx = ore.x - centerX
+                    val dz = ore.z - centerZ
+                    val distance = kotlin.math.sqrt(dx * dx + dz * dz).toInt()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onJump(ore.x, ore.z) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "${ore.x}, ${ore.y}, ${ore.z}",
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = "$distance 格",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         }

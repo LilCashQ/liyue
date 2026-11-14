@@ -43,11 +43,12 @@ import com.liyue.mctoolbox.map.finder.ChunkbaseAppsScreen
 import com.liyue.mctoolbox.map.finder.FinderScreen
 import com.liyue.mctoolbox.ui.AboutScreen
 import com.liyue.mctoolbox.ui.AuthScreen
+import com.liyue.mctoolbox.ui.ConvertScreen
 import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, DEBUG, AUTH }
+private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, DEBUG, AUTH }
 private enum class Tab { HOME, TOOLS, ABOUT }
 
 @AndroidEntryPoint
@@ -81,6 +82,7 @@ class MainActivity : ComponentActivity() {
                         ToolCatalog.BEDROCK_LIBRARY -> screen = Screen.BEDROCK
                         ToolCatalog.SCRIPT_STUDIO -> screen = Screen.SCRIPT
                         ToolCatalog.FLOWER_FARM -> screen = Screen.FLOWER
+                        ToolCatalog.CONVERT -> screen = Screen.CONVERT
                     }
                 }
 
@@ -170,6 +172,7 @@ class MainActivity : ComponentActivity() {
                             screen = Screen.MAP
                         },
                     )
+                    Screen.CONVERT -> ConvertScreen(onBack = { screen = Screen.TABS })
                     Screen.DEBUG -> SeedGenScreen(onBack = { screen = Screen.TABS })
                     Screen.AUTH -> AuthScreen(onBack = { screen = Screen.TABS })
                     Screen.TABS -> MainTabs(

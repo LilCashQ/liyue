@@ -16,9 +16,10 @@ android {
     defaultConfig {
         applicationId = "com.liyue.mctoolbox"
         minSdk = 26
+        multiDexEnabled = true
         targetSdk = 35
-        versionCode = 60
-        versionName = "0.53.0"
+        versionCode = 61
+        versionName = "0.54.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters += "arm64-v8a"
@@ -64,6 +65,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":engine"))
     implementation(project(":core:seedgen"))
     implementation(project(":feature:map"))
     implementation(project(":feature:home"))
