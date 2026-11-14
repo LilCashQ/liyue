@@ -23,8 +23,19 @@ import java.io.File
  */
 class ConvertService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var running = false
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        // Chunker has no abort API, so cancelling means tearing the process down.
+        if (running) {
+            running = false
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
+        super.onDestroy()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val input = intent?.getStringExtra(EXTRA_INPUT)?.let(::File)
@@ -37,6 +48,7 @@ class ConvertService : Service() {
             return START_NOT_STICKY
         }
         startForeground(NOTIFICATION_ID, buildNotification())
+        running = true
         scope.launch {
             val outcome = runCatching {
                 WorldConverter.convert(this@ConvertService, input, output, format) { fraction, text ->
@@ -67,6 +79,7 @@ class ConvertService : Service() {
                 output.deleteRecursively()
                 target.delete()
             }
+            running = false
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }

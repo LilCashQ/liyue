@@ -109,6 +109,8 @@ fun ConvertScreen(onBack: () -> Unit) {
     var outputs by remember { mutableStateOf<List<OutputEntry>>(emptyList()) }
     var showVersions by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var runningName by remember { mutableStateOf("") }
+    var elapsedSeconds by remember { mutableStateOf(0) }
 
     fun refreshOutputs() {
         val dir = File(context.filesDir, "outputs")
@@ -194,6 +196,26 @@ fun ConvertScreen(onBack: () -> Unit) {
         }
     }
 
+    LaunchedEffect(busy) {
+        if (!busy) {
+            elapsedSeconds = 0
+            return@LaunchedEffect
+        }
+        val started = System.currentTimeMillis()
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            elapsedSeconds = ((System.currentTimeMillis() - started) / 1000).toInt()
+        }
+    }
+
+    fun cancelConversion() {
+        runCatching { context.stopService(Intent(context, ConvertService::class.java)) }
+        busy = false
+        stage = ""
+        progress = 0f
+        message = "已取消转换"
+    }
+
     fun runConversion() {
         val entry = entries.firstOrNull() ?: return
         val format = targetId ?: return
@@ -201,6 +223,7 @@ fun ConvertScreen(onBack: () -> Unit) {
         progress = 0f
         stage = "准备中…"
         message = null
+        runningName = entry.dir.name
         val ext = if (groupId == "BEDROCK") "mcworld" else "zip"
         val name = (outputName.ifBlank { entry.name }).let {
             if (it.endsWith(".zip") || it.endsWith(".mcworld")) it else "$it.$ext"
@@ -418,25 +441,76 @@ fun ConvertScreen(onBack: () -> Unit) {
                     }
 
                     if (busy) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Text(
-                                text = stage.ifBlank { "转换中…" },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = runningName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 2,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Spacer(Modifier.size(10.dp))
+                                    Text(
+                                        text = "0%".let { _ -> "${(progress * 100).toInt()}%" },
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    text = "${stage.ifBlank { "转换中…" }} · ${elapsedSeconds} 秒",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = "这是个重活，给它一点耐心。",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                androidx.compose.material3.OutlinedButton(
+                                    onClick = { cancelConversion() },
+                                    shape = RoundedCornerShape(50),
+                                ) { Text("取消") }
+                            }
                         }
                     }
 
-                    LiYueActionButton(
-                        text = "开始转换",
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !busy && entries.isNotEmpty() && targetId != null,
-                        onClick = { runConversion() },
-                    )
+                    if (busy) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    RoundedCornerShape(50),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "转换中…",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    } else {
+                        LiYueActionButton(
+                            text = "开始转换",
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = entries.isNotEmpty() && targetId != null,
+                            onClick = { runConversion() },
+                        )
+                    }
                     message?.let {
                         Text(
                             text = it,
