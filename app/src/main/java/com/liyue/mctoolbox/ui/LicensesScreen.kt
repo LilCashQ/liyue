@@ -50,6 +50,7 @@ private data class Project(
     val role: String,
     val license: String,
     val url: String,
+    val iconRes: Int? = null,
 )
 
 private val CORE = listOf(
@@ -76,6 +77,7 @@ private val CORE = listOf(
         role = "图层与统计面板的交互参考（生物群系、高度、气候参数）",
         license = "MIT",
         url = "https://github.com/Cubitect/cubiomes-viewer",
+        iconRes = com.liyue.mctoolbox.R.drawable.lic_cubiomesviewer,
     ),
     Project(
         name = "Chunker",
@@ -95,6 +97,7 @@ private val FRAMEWORK = listOf(
         role = "应用与原生桥接层的开发语言",
         license = "Apache-2.0",
         url = "https://github.com/JetBrains/kotlin",
+        iconRes = com.liyue.mctoolbox.R.drawable.lic_kotlin,
     ),
     Project(
         name = "Jetpack Compose",
@@ -103,6 +106,7 @@ private val FRAMEWORK = listOf(
         role = "全部界面的声明式 UI 框架",
         license = "Apache-2.0",
         url = "https://github.com/androidx/androidx",
+        iconRes = com.liyue.mctoolbox.R.drawable.lic_jetpackcompose,
     ),
     Project(
         name = "AndroidX",
@@ -111,6 +115,7 @@ private val FRAMEWORK = listOf(
         role = "生命周期、导航、SAF 文件选择等基础组件",
         license = "Apache-2.0",
         url = "https://github.com/androidx/androidx",
+        iconRes = com.liyue.mctoolbox.R.drawable.lic_android,
     ),
     Project(
         name = "Hilt",
@@ -178,6 +183,7 @@ private val ASSETS = listOf(
         role = "矿石与物品图标用的原版贴图",
         license = "Mojang 资源，仅作展示",
         url = "https://github.com/InventivetalentDev/minecraft-assets",
+        iconRes = com.liyue.mctoolbox.R.drawable.lic_grass,
     ),
     Project(
         name = "cJSON",
@@ -288,12 +294,20 @@ private fun ProjectRow(project: Project, onClick: () -> Unit) {
                 .background(project.tint.copy(alpha = 0.14f), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = project.monogram,
-                color = project.tint,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp,
-            )
+            if (project.iconRes != null) {
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(project.iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                )
+            } else {
+                Text(
+                    text = project.monogram,
+                    color = project.tint,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                )
+            }
         }
         Spacer(Modifier.size(12.dp))
         Column(Modifier.weight(1f)) {
