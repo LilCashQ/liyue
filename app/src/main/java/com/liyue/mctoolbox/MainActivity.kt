@@ -77,6 +77,9 @@ class MainActivity : ComponentActivity() {
                 var recentToolIds by rememberSaveable {
                     mutableStateOf(prefs.getString("recent_tools", null))
                 }
+                var frequentToolIds by rememberSaveable {
+                    mutableStateOf(prefs.getString("frequent_tools", null))
+                }
                 var mapTarget by remember { mutableStateOf<MapTarget?>(null) }
                 var finderPreset by remember { mutableStateOf<ChunkbaseApp?>(null) }
                 var finderFromMap by remember { mutableStateOf(false) }
@@ -85,7 +88,28 @@ class MainActivity : ComponentActivity() {
                     if (!tool.available) return
                     recentToolIds = (listOf(tool.id) + (recentToolIds?.split(",") ?: emptyList()))
                         .distinct().take(8).joinToString(",")
-                    prefs.edit().putString("recent_tools", recentToolIds).apply()
+                    // 常用功能按真实使用次数排，用够 3 次才算「常用」
+                    val counts = mutableMapOf<String, Int>()
+                    prefs.getString("tool_usage", null)?.split(",")?.forEach { part ->
+                        val bits = part.split(":")
+                        if (bits.size == 2) {
+                            bits[0].takeIf { it.isNotBlank() }?.let { id ->
+                                counts[id] = (counts[id] ?: 0) + (bits[1].toIntOrNull() ?: 0)
+                            }
+                        }
+                    }
+                    counts[tool.id] = (counts[tool.id] ?: 0) + 1
+                    prefs.edit()
+                        .putString("recent_tools", recentToolIds)
+                        .putString("tool_usage", counts.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        .apply()
+                    frequentToolIds = counts.entries
+                        .filter { it.value >= 3 }
+                        .sortedByDescending { it.value }
+                        .take(8)
+                        .joinToString(",") { it.key }
+                        .ifBlank { null }
+                    prefs.edit().putString("frequent_tools", frequentToolIds).apply()
                     when (tool.id) {
                         ToolCatalog.SEED_MAP -> screen = Screen.MAP
                         ToolCatalog.STRUCTURE_FINDER -> screen = Screen.APPS
@@ -206,6 +230,7 @@ class MainActivity : ComponentActivity() {
                         tab = tab,
                         onTabChange = { tab = it },
                         recentToolIds = recentToolIds,
+                        frequentToolIds = frequentToolIds,
                         user = user,
                         onOpenTool = ::openTool,
                         onLogin = { screen = Screen.AUTH },
@@ -223,6 +248,7 @@ private fun MainTabs(
     tab: Tab,
     onTabChange: (Tab) -> Unit,
     recentToolIds: String?,
+    frequentToolIds: String?,
     user: com.liyue.mctoolbox.auth.AuthUser?,
     onOpenTool: (ToolEntry) -> Unit,
     onLogin: () -> Unit,
@@ -261,6 +287,7 @@ private fun MainTabs(
             when (tab) {
                 Tab.HOME -> HomeScreen(
                     recentToolIds = recentToolIds,
+                    frequentToolIds = frequentToolIds,
                     onOpenTool = onOpenTool,
                 )
                 Tab.TOOLS -> ToolsScreen(

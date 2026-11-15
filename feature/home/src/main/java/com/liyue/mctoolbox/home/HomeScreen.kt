@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun HomeScreen(
     recentToolIds: String?,
+    frequentToolIds: String? = null,
     onOpenTool: (ToolEntry) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -76,9 +77,9 @@ fun HomeScreen(
         }
     }
     val recents = ToolCatalog.byIds(recentToolIds?.split(",") ?: emptyList())
-    val featured = remember {
-        val featuredIds = ToolCatalog.featuredIds
-        ToolCatalog.byIds(featuredIds).ifEmpty { ToolCatalog.all.filter { it.available }.take(6) }
+    // 常用 = 真正用过的（用够 3 次才会进这个列表），没记录就不显示这一节
+    val frequent = remember(frequentToolIds) {
+        ToolCatalog.byIds(frequentToolIds?.split(",") ?: emptyList())
     }
 
     LazyVerticalGrid(
@@ -108,12 +109,12 @@ fun HomeScreen(
             }
         }
 
-        if (query.isBlank()) {
+        if (frequent.isNotEmpty() && query.isBlank()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                SectionTitle("常用功能")
+                SectionTitle("常用功能", trailing = "${frequent.size}")
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                QuickRow(featured, onOpenTool)
+                QuickRow(frequent, onOpenTool)
             }
         }
 
@@ -355,22 +356,22 @@ private fun HeroCard(
 @Composable
 private fun QuickRow(tools: List<ToolEntry>, onOpenTool: (ToolEntry) -> Unit) {
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
     ) {
         items(tools) { tool ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .width(76.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .width(66.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .clickable(enabled = tool.available) { onOpenTool(tool) }
                     .padding(vertical = 4.dp),
             ) {
                 Surface(
                     shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(52.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
