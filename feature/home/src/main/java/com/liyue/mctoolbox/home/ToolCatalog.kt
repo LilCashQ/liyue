@@ -26,6 +26,7 @@ object ToolCatalog {
     const val CONVERT = "world_convert"
     const val ID_TABLE = "id_table"
     const val JAVA_ID_TABLE = "java_id_table"
+    const val COMMANDS = "bedrock_commands"
     const val SCRIPT_STUDIO = "script_studio"
     const val FLOWER_FARM = "flower_farm"
 
@@ -70,6 +71,13 @@ object ToolCatalog {
             title = "Java 版 ID 表",
             subtitle = "方块与物品的字符串 ID、数字 ID，点一行复制",
             icon = Icons.Filled.Search,
+            available = true,
+        ),
+        ToolEntry(
+            id = COMMANDS,
+            title = "基岩版命令速查",
+            subtitle = "79 条命令的说明与语法，点开复制",
+            icon = Icons.Filled.Edit,
             available = true,
         ),
         ToolEntry(

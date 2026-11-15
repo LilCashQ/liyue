@@ -115,8 +115,8 @@ fun AboutScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 12.dp, bottom = 32.dp),
     ) {
         item {
             androidx.compose.foundation.layout.Box(
@@ -269,72 +269,70 @@ fun AboutScreen(
 
 @Composable
 private fun AccountCard(user: AuthUser?, onLogin: () -> Unit, onLogout: () -> Unit) {
-    Card(shape = RoundedCornerShape(28.dp)) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Brush.linearGradient(listOf(Color(0xFFA8C8FF), Color(0xFF7FA6F0))))
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
-                        .background(Color(0xFF34506E), CircleShape),
+                        .size(48.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                            CircleShape,
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         Icons.Filled.Person,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(34.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
-                Spacer(Modifier.width(16.dp))
-                Column {
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = user?.nickname ?: "未登录",
-                        color = Color(0xFF1B2A3D),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
                         text = if (user != null) user.email else "登录后同步收藏与下载记录",
-                        color = Color(0xFF3A4A5E),
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
             if (user == null) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onLogin),
-                    shape = RoundedCornerShape(50),
-                    color = Color(0xFF34506E),
-                ) {
-                    Text(
-                        text = "登录 / 注册",
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                }
+                com.liyue.mctoolbox.map.LiYueActionButton(
+                    text = "登录 / 注册",
+                    onClick = onLogin,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             } else {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onLogout),
                     shape = RoundedCornerShape(50),
-                    color = Color(0x33345060),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                 ) {
                     Text(
                         text = "退出登录",
                         modifier = Modifier.padding(vertical = 12.dp),
-                        color = Color(0xFF1B2A3D),
-                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleSmall,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                 }
@@ -347,43 +345,51 @@ private fun AccountCard(user: AuthUser?, onLogin: () -> Unit, onLogout: () -> Un
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        modifier = Modifier.padding(top = 16.dp, start = 4.dp, bottom = 2.dp),
-        style = MaterialTheme.typography.titleSmall,
+        modifier = Modifier.padding(top = 18.dp, start = 4.dp, bottom = 0.dp),
+        style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
 @Composable
 private fun RowCard(row: AboutRow, onClick: () -> Unit) {
-    Card(
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant,
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    .size(34.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.09f),
+                        RoundedCornerShape(10.dp),
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = row.icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp),
                 )
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(13.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(row.title, style = MaterialTheme.typography.titleMedium)
+                Text(row.title, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text = row.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -391,7 +397,7 @@ private fun RowCard(row: AboutRow, onClick: () -> Unit) {
                 imageVector = Icons.Filled.List,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(14.dp),
             )
         }
     }

@@ -1,0 +1,79 @@
+aimassist	修改玩家的瞄准辅助。	aimassist <将被修改瞄准辅助的玩家> clear
+alwaysday	锁定或解除白天锁定。	
+camera	修改玩家的相机视角。	camera <将被修改相机视角的玩家> attach_to_entity <相机实体>
+camerashake	对玩家视野施以摇晃效果。	camerashake add <要施以视野摇晃效果的玩家> [摇晃强度] [视野摇晃的时长] [摇晃方向]
+clear	清除玩家物品栏的物品。	
+clearspawnpoint	清除玩家的重生点。	
+clone	在指定区域之间复制方块结构。	clone <源区域一个角点的坐标> <对角点> <目标区域起点> [是否过滤被复制方块] [对源区域的操作]
+connect	连接WebSocket服务器。	connect <服务器URI>
+controlscheme	修改玩家的相机控制方案。	controlscheme <要被修改控制方案的玩家> clear
+damage	对指定实体造成指定类型的伤害。	damage <要被伤害的目标实体> <要造成的伤害值> [伤害类型] entity [伤害来源实体]
+daylock	锁定或解除白天锁定。	
+deop	撤销玩家的管理员身份。	deop <要撤销管理员的玩家>
+dialogue	为玩家打开或改变NPC的对话框。	dialogue change <要打开或改变的NPC目标> <场景名称> [对话玩家]
+difficulty	设定世界难度等级。	difficulty <新的游戏难度>
+effect	管理玩家及其他实体上的状态效果。	effect <目标> <给予或者需要移除的效果> [效果时长] [效果的放大倍率] [粒子显示状态]
+enchant	为实体手持的物品添加魔咒。	enchant <目标> <魔咒> [魔咒的等级]
+event	触发实体事件。	event entity <事件作用对象> <实体事件名称>
+execute	按指定执行环境和条件运行命令。	execute ... run <命令>
+fill	用特定方块填充一个区域的全部或部分。	fill <填充区域一个角点的坐标> <另一个角点> <方块ID> [方块状态] [方块更改的处理方式]
+fog	用于更改玩家的迷雾效果。	fog <修改玩家迷雾效果的目标> <删除模式> <迷雾设置的名称>
+function	运行函数。	function <行为包函数>
+gamemode	设置玩家的游戏模式。	gamemode <新游戏模式> [要被修改游戏模式的玩家]
+gamerule	设置或查询游戏规则。	
+gametest	管理和运行游戏测试框架。	gametest clearall
+give	给予玩家指定数量的物品。	give <获得物品的玩家> <物品ID> [物品数量] [物品附加值] [物品组件]
+help	获取可用命令列表或单个命令的帮助信息。	
+hud	修改HUD的可见性。	hud <玩家> <可见性操作> [将被修改的HUD元素]
+inputpermission	查询或设置玩家的输入权限。	inputpermission query <权限的拥有者> <操作所作用的权限> [权限的状态]
+kick	将玩家踢出服务器。	kick <要踢出的玩家> [将显示给被踢出玩家的消息]
+kill	杀死生物，清除非生物实体。	
+list	列出在服务器上的玩家。	
+locate	定位最近的结构、生物群系，支持时也可定位兴趣点。	locate biome <生物群系ID>
+loot	将指定的战利品放入物品栏或世界。	loot give <接收物品的玩家> kill <目标实体> [工具]
+me	广播一条关于你的信息。	me <要显示的消息>
+mobevent	控制或查询允许运行的生物事件。	mobevent <要控制或查询的事件> [事件状态]
+msg	将一条私聊消息发送给一个或多个玩家。	msg <私聊消息的接收玩家> <要发送的消息>
+music	允许玩家控制音乐。	music play <播放音乐名> [调整音乐音量] [调整音乐淡入/淡出时间] [是否循环播放音乐]
+op	给予玩家管理员身份。	op <要被授予管理员权限的玩家>
+ops	管理玩家权限和操作员列表。	ops set <目标玩家> [权限等级所对应的身份]
+packstack	显示已加载的资源包、行为包和脚本模块。	
+particle	在指定位置显示粒子效果。	
+permission	管理玩家权限和操作员列表。	
+place	在指定位置放置地物、地物规则、结构或结构池。	
+playanimation	在一个或多个实体上播放一次性动画。	
+playsound	以指定音量和音高播放声音事件。	
+recipe	给予或剥夺玩家的配方。	
+reload	重新加载行为包中的函数和脚本。	
+replaceitem	替换方块或实体物品栏中的物品。	
+ride	控制实体之间的骑乘关系。	
+say	通过聊天框向多个玩家发送消息。	
+schedule	计划执行函数。	
+scoreboard	管理记分板中的记分项和分数持有者。	
+script	管理GameTest调试、诊断和性能分析。	
+scriptevent	通过ID和消息来触发脚本事件。	
+setblock	将指定位置的方块更改为另一个方块。	
+setmaxplayers	设置可加入多人游戏的玩家数量上限。	
+setworldspawn	设置世界出生点。	
+spawnpoint	为特定玩家设置出生点。	
+spreadplayers	把实体随机传送到区域内地表的某个位置。	
+stopsound	停止声音事件播放。	
+structure	用于在不使用结构方块的情况下保存、加载或删除结构。	
+summon	召唤一个实体。	
+tag	管理实体的记分板标签。	
+teleport	传送实体（玩家、生物等）到指定的地点；部分语法还会设置其旋转角度。	
+tell	将一条私聊消息发送给一个或多个玩家。	
+tellraw	向一个或多个玩家发送一条以文本组件表示的消息。	
+testfor	检测并列出符合指定条件的实体名称。	
+testforblock	探测某个方块是否在特定位置。	
+testforblocks	测试两个区域中的方块是否相同。	
+tickingarea	添加、删除或列出常加载区域。	
+time	控制或查询时间。	
+title	控制屏幕标题。	
+titleraw	控制屏幕标题。	
+toggledownfall	切换当前天气状态。	
+tp	传送实体（玩家、生物等）到指定的地点；部分语法还会设置其旋转角度。	
+w	将一条私聊消息发送给一个或多个玩家。	
+weather	更改游戏中的天气。	
+wsserver	连接WebSocket服务器。	
+xp	给予玩家经验值或调整经验等级。	

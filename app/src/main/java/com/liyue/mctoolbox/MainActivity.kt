@@ -43,6 +43,7 @@ import com.liyue.mctoolbox.map.finder.ChunkbaseAppsScreen
 import com.liyue.mctoolbox.map.finder.FinderScreen
 import com.liyue.mctoolbox.ui.AboutScreen
 import com.liyue.mctoolbox.ui.AuthScreen
+import com.liyue.mctoolbox.ui.BedrockCommandScreen
 import com.liyue.mctoolbox.ui.ConvertScreen
 import com.liyue.mctoolbox.ui.IdTableScreen
 import com.liyue.mctoolbox.ui.JavaIdTableScreen
@@ -51,7 +52,7 @@ import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, ID_TABLE, JAVA_ID_TABLE, LICENSES, DEBUG, AUTH }
+private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, ID_TABLE, JAVA_ID_TABLE, COMMANDS, LICENSES, DEBUG, AUTH }
 private enum class Tab { HOME, TOOLS, ABOUT }
 
 @AndroidEntryPoint
@@ -88,6 +89,7 @@ class MainActivity : ComponentActivity() {
                         ToolCatalog.CONVERT -> screen = Screen.CONVERT
                         ToolCatalog.ID_TABLE -> screen = Screen.ID_TABLE
                         ToolCatalog.JAVA_ID_TABLE -> screen = Screen.JAVA_ID_TABLE
+                        ToolCatalog.COMMANDS -> screen = Screen.COMMANDS
                     }
                 }
 
@@ -180,6 +182,7 @@ class MainActivity : ComponentActivity() {
                     Screen.CONVERT -> ConvertScreen(onBack = { screen = Screen.TABS })
                     Screen.ID_TABLE -> IdTableScreen(onBack = { screen = Screen.TABS })
                     Screen.JAVA_ID_TABLE -> JavaIdTableScreen(onBack = { screen = Screen.TABS })
+                    Screen.COMMANDS -> BedrockCommandScreen(onBack = { screen = Screen.TABS })
                     Screen.LICENSES -> LicensesScreen(onBack = { screen = Screen.TABS })
                     Screen.DEBUG -> SeedGenScreen(onBack = { screen = Screen.TABS })
                     Screen.AUTH -> AuthScreen(onBack = { screen = Screen.TABS })
