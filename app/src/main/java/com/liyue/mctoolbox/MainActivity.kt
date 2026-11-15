@@ -74,8 +74,8 @@ class MainActivity : ComponentActivity() {
                 }
                 var screen by rememberSaveable { mutableStateOf(Screen.TABS) }
                 var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-                var recentToolId by rememberSaveable {
-                    mutableStateOf(prefs.getString("recent_tool", null))
+                var recentToolIds by rememberSaveable {
+                    mutableStateOf(prefs.getString("recent_tools", null))
                 }
                 var mapTarget by remember { mutableStateOf<MapTarget?>(null) }
                 var finderPreset by remember { mutableStateOf<ChunkbaseApp?>(null) }
@@ -83,8 +83,9 @@ class MainActivity : ComponentActivity() {
 
                 fun openTool(tool: ToolEntry) {
                     if (!tool.available) return
-                    recentToolId = tool.id
-                    prefs.edit().putString("recent_tool", tool.id).apply()
+                    recentToolIds = (listOf(tool.id) + (recentToolIds?.split(",") ?: emptyList()))
+                        .distinct().take(8).joinToString(",")
+                    prefs.edit().putString("recent_tools", recentToolIds).apply()
                     when (tool.id) {
                         ToolCatalog.SEED_MAP -> screen = Screen.MAP
                         ToolCatalog.STRUCTURE_FINDER -> screen = Screen.APPS
@@ -204,7 +205,7 @@ class MainActivity : ComponentActivity() {
                     Screen.TABS -> MainTabs(
                         tab = tab,
                         onTabChange = { tab = it },
-                        recentToolId = recentToolId,
+                        recentToolIds = recentToolIds,
                         user = user,
                         onOpenTool = ::openTool,
                         onLogin = { screen = Screen.AUTH },
@@ -221,7 +222,7 @@ class MainActivity : ComponentActivity() {
 private fun MainTabs(
     tab: Tab,
     onTabChange: (Tab) -> Unit,
-    recentToolId: String?,
+    recentToolIds: String?,
     user: com.liyue.mctoolbox.auth.AuthUser?,
     onOpenTool: (ToolEntry) -> Unit,
     onLogin: () -> Unit,
@@ -259,7 +260,7 @@ private fun MainTabs(
         ) {
             when (tab) {
                 Tab.HOME -> HomeScreen(
-                    recentToolId = recentToolId,
+                    recentToolIds = recentToolIds,
                     onOpenTool = onOpenTool,
                 )
                 Tab.TOOLS -> ToolsScreen(

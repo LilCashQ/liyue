@@ -18,10 +18,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,7 +58,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun HomeScreen(
-    recentToolId: String?,
+    recentToolIds: String?,
     onOpenTool: (ToolEntry) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -72,7 +75,11 @@ fun HomeScreen(
             }
         }
     }
-    val recent = ToolCatalog.byId(recentToolId)
+    val recents = ToolCatalog.byIds(recentToolIds?.split(",") ?: emptyList())
+    val featured = remember {
+        val featuredIds = ToolCatalog.featuredIds
+        ToolCatalog.byIds(featuredIds).ifEmpty { ToolCatalog.all.filter { it.available }.take(6) }
+    }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -92,12 +99,21 @@ fun HomeScreen(
             HeroRow(onOpenTool = onOpenTool)
         }
 
-        if (recent != null && query.isBlank()) {
+        if (recents.isNotEmpty() && query.isBlank()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                SectionTitle("最近使用")
+                SectionTitle("最近使用", trailing = "${recents.size}")
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                RecentRow(recent) { onOpenTool(recent) }
+                QuickRow(recents, onOpenTool)
+            }
+        }
+
+        if (query.isBlank()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SectionTitle("常用功能")
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                QuickRow(featured, onOpenTool)
             }
         }
 
@@ -337,39 +353,45 @@ private fun HeroCard(
 }
 
 @Composable
-private fun RecentRow(tool: ToolEntry, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        onClick = onClick,
+private fun QuickRow(tools: List<ToolEntry>, onOpenTool: (ToolEntry) -> Unit) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(vertical = 2.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = tool.icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(tool.title, style = MaterialTheme.typography.titleSmall)
+        items(tools) { tool ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(76.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(enabled = tool.available) { onOpenTool(tool) }
+                    .padding(vertical = 4.dp),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = tool.icon,
+                            contentDescription = tool.title,
+                            tint = if (tool.available) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    tool.subtitle,
+                    text = tool.title,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (tool.available) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(
-                text = "继续",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
         }
     }
 }
