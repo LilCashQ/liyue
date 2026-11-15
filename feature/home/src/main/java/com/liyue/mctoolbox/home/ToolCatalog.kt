@@ -24,6 +24,7 @@ object ToolCatalog {
     const val STRUCTURE_FINDER = "structure_finder"
     const val BEDROCK_LIBRARY = "bedrock_library"
     const val CONVERT = "world_convert"
+    const val ID_TABLE = "id_table"
     const val SCRIPT_STUDIO = "script_studio"
     const val FLOWER_FARM = "flower_farm"
 
@@ -54,6 +55,13 @@ object ToolCatalog {
             title = "存档转换",
             subtitle = "Java 版 ⇄ 基岩版，整张地图搬过去",
             icon = Icons.Filled.Refresh,
+            available = true,
+        ),
+        ToolEntry(
+            id = ID_TABLE,
+            title = "基岩版 ID 表",
+            subtitle = "命令要用的方块/物品/实体 ID，点一行复制",
+            icon = Icons.Filled.List,
             available = true,
         ),
         ToolEntry(

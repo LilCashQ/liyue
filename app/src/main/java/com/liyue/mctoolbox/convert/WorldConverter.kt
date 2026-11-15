@@ -158,6 +158,7 @@ object WorldConverter {
         input: File,
         output: File,
         formatId: String,
+        convertEntities: Boolean = true,
         onProgress: (Float, String) -> Unit,
     ) {
         output.deleteRecursively()
@@ -166,7 +167,7 @@ object WorldConverter {
             input,
             output,
             formatId,
-            ConversionOptions.DEFAULT,
+            if (convertEntities) ConversionOptions.DEFAULT else ConversionOptions.NO_ENTITIES,
         ) { fraction, stage -> onProgress(fraction.toFloat(), stage ?: "") }
     }
 

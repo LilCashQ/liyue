@@ -108,6 +108,7 @@ fun ConvertScreen(onBack: () -> Unit) {
     var message by remember { mutableStateOf<String?>(null) }
     var outputs by remember { mutableStateOf<List<OutputEntry>>(emptyList()) }
     var showVersions by remember { mutableStateOf(false) }
+    var convertEntities by remember { mutableStateOf(true) }
     var showAbout by remember { mutableStateOf(false) }
     var runningName by remember { mutableStateOf("") }
     var elapsedSeconds by remember { mutableStateOf(0) }
@@ -287,6 +288,7 @@ fun ConvertScreen(onBack: () -> Unit) {
             putExtra(ConvertService.EXTRA_OUTPUT, outDir.absolutePath)
             putExtra(ConvertService.EXTRA_TARGET, target.absolutePath)
             putExtra(ConvertService.EXTRA_FORMAT, format)
+            putExtra(ConvertService.EXTRA_ENTITIES, convertEntities)
             putExtra(ConvertService.EXTRA_RECEIVER, receiver)
         }
         runCatching {
@@ -432,6 +434,32 @@ fun ConvertScreen(onBack: () -> Unit) {
                                         .ifBlank { entries.firstOrNull()?.name ?: "world" }) + "-" +
                                         groupId.lowercase()
                                 },
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable(enabled = !busy) {
+                                    convertEntities = !convertEntities
+                                },
+                            ) {
+                                Checkbox(
+                                    checked = convertEntities,
+                                    onCheckedChange = { convertEntities = it },
+                                    enabled = !busy,
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = MaterialTheme.colorScheme.primary,
+                                        uncheckedColor = MaterialTheme.colorScheme.outline,
+                                    ),
+                                )
+                                Text(
+                                    text = "带动实体一起转",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            Text(
+                                text = "生物、掉落物、拴绳和村民交易都在最后一遍转；关掉能省约一成时间，但新世界里会没有生物。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 40.dp, bottom = 4.dp),
                             )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,

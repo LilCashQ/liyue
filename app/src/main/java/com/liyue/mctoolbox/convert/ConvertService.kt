@@ -43,6 +43,7 @@ class ConvertService : Service() {
         val output = intent?.getStringExtra(EXTRA_OUTPUT)?.let(::File)
         val target = intent?.getStringExtra(EXTRA_TARGET)?.let(::File)
         val format = intent?.getStringExtra(EXTRA_FORMAT)
+        val entities = intent?.getBooleanExtra(EXTRA_ENTITIES, true) ?: true
         val receiver = intent?.getParcelableExtra<ResultReceiver>(EXTRA_RECEIVER)
         if (input == null || output == null || target == null || format == null) {
             stopSelf()
@@ -64,7 +65,7 @@ class ConvertService : Service() {
         }
         scope.launch {
             val outcome = runCatching {
-                WorldConverter.convert(this@ConvertService, input, output, format) { fraction, text ->
+                WorldConverter.convert(this@ConvertService, input, output, format, entities) { fraction, text ->
                     receiver?.send(
                         Activity.RESULT_OK,
                         android.os.Bundle().apply {
@@ -129,6 +130,7 @@ class ConvertService : Service() {
         const val EXTRA_OUTPUT = "output"
         const val EXTRA_TARGET = "target"
         const val EXTRA_FORMAT = "format"
+        const val EXTRA_ENTITIES = "entities"
         const val EXTRA_RECEIVER = "receiver"
 
         const val KEY_KIND = "kind"
