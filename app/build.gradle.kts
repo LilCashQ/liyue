@@ -18,8 +18,8 @@ android {
         minSdk = 26
         multiDexEnabled = true
         targetSdk = 35
-        versionCode = 74
-        versionName = "0.63.1"
+        versionCode = 75
+        versionName = "0.64.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters += "arm64-v8a"

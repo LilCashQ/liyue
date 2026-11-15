@@ -29,6 +29,9 @@ object ToolCatalog {
     const val COMMANDS = "bedrock_commands"
     const val ART_TEXT = "art_text"
     const val RAW_TEXT = "raw_text"
+    const val SELECTOR = "selector"
+    const val EXECUTE_FIX = "execute_fix"
+    const val TYPING = "typing_title"
     const val SCRIPT_STUDIO = "script_studio"
     const val FLOWER_FARM = "flower_farm"
 
@@ -93,6 +96,27 @@ object ToolCatalog {
             id = RAW_TEXT,
             title = "rawtext 构建器",
             subtitle = "拼 tellraw 的 JSON，直接复制命令",
+            icon = Icons.Filled.Edit,
+            available = true,
+        ),
+        ToolEntry(
+            id = SELECTOR,
+            title = "选择器编辑器",
+            subtitle = "拼 @a[name=,tag=,distance=…] 这类参数",
+            icon = Icons.Filled.Search,
+            available = true,
+        ),
+        ToolEntry(
+            id = EXECUTE_FIX,
+            title = "execute 语法转换",
+            subtitle = "旧版 execute 一键升级成新格式",
+            icon = Icons.Filled.Refresh,
+            available = true,
+        ),
+        ToolEntry(
+            id = TYPING,
+            title = "T 显动画",
+            subtitle = "打字机标题，计分板推进逐字显示",
             icon = Icons.Filled.Edit,
             available = true,
         ),

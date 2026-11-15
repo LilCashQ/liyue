@@ -45,7 +45,10 @@ import com.liyue.mctoolbox.ui.AboutScreen
 import com.liyue.mctoolbox.ui.AuthScreen
 import com.liyue.mctoolbox.ui.ArtTextScreen
 import com.liyue.mctoolbox.ui.BedrockCommandScreen
+import com.liyue.mctoolbox.ui.ExecuteConvertScreen
 import com.liyue.mctoolbox.ui.RawTextScreen
+import com.liyue.mctoolbox.ui.SelectorScreen
+import com.liyue.mctoolbox.ui.TypingAnimationScreen
 import com.liyue.mctoolbox.ui.ConvertScreen
 import com.liyue.mctoolbox.ui.IdTableScreen
 import com.liyue.mctoolbox.ui.JavaIdTableScreen
@@ -54,7 +57,7 @@ import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, ID_TABLE, JAVA_ID_TABLE, COMMANDS, ART_TEXT, RAW_TEXT, LICENSES, DEBUG, AUTH }
+private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, ID_TABLE, JAVA_ID_TABLE, COMMANDS, ART_TEXT, RAW_TEXT, SELECTOR, EXECUTE_FIX, TYPING, LICENSES, DEBUG, AUTH }
 private enum class Tab { HOME, TOOLS, ABOUT }
 
 @AndroidEntryPoint
@@ -94,6 +97,9 @@ class MainActivity : ComponentActivity() {
                         ToolCatalog.COMMANDS -> screen = Screen.COMMANDS
                         ToolCatalog.ART_TEXT -> screen = Screen.ART_TEXT
                         ToolCatalog.RAW_TEXT -> screen = Screen.RAW_TEXT
+                        ToolCatalog.SELECTOR -> screen = Screen.SELECTOR
+                        ToolCatalog.EXECUTE_FIX -> screen = Screen.EXECUTE_FIX
+                        ToolCatalog.TYPING -> screen = Screen.TYPING
                     }
                 }
 
@@ -189,6 +195,9 @@ class MainActivity : ComponentActivity() {
                     Screen.COMMANDS -> BedrockCommandScreen(onBack = { screen = Screen.TABS })
                     Screen.ART_TEXT -> ArtTextScreen(onBack = { screen = Screen.TABS })
                     Screen.RAW_TEXT -> RawTextScreen(onBack = { screen = Screen.TABS })
+                    Screen.SELECTOR -> SelectorScreen(onBack = { screen = Screen.TABS })
+                    Screen.EXECUTE_FIX -> ExecuteConvertScreen(onBack = { screen = Screen.TABS })
+                    Screen.TYPING -> TypingAnimationScreen(onBack = { screen = Screen.TABS })
                     Screen.LICENSES -> LicensesScreen(onBack = { screen = Screen.TABS })
                     Screen.DEBUG -> SeedGenScreen(onBack = { screen = Screen.TABS })
                     Screen.AUTH -> AuthScreen(onBack = { screen = Screen.TABS })
