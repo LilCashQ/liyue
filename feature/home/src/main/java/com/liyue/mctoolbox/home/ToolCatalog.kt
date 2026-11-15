@@ -27,6 +27,8 @@ object ToolCatalog {
     const val ID_TABLE = "id_table"
     const val JAVA_ID_TABLE = "java_id_table"
     const val COMMANDS = "bedrock_commands"
+    const val ART_TEXT = "art_text"
+    const val RAW_TEXT = "raw_text"
     const val SCRIPT_STUDIO = "script_studio"
     const val FLOWER_FARM = "flower_farm"
 
@@ -77,6 +79,20 @@ object ToolCatalog {
             id = COMMANDS,
             title = "基岩版命令速查",
             subtitle = "79 条命令的说明与语法，点开复制",
+            icon = Icons.Filled.Edit,
+            available = true,
+        ),
+        ToolEntry(
+            id = ART_TEXT,
+            title = "艺术字转换",
+            subtitle = "字母数字换成游戏内字形，九种风格",
+            icon = Icons.Filled.Edit,
+            available = true,
+        ),
+        ToolEntry(
+            id = RAW_TEXT,
+            title = "rawtext 构建器",
+            subtitle = "拼 tellraw 的 JSON，直接复制命令",
             icon = Icons.Filled.Edit,
             available = true,
         ),
