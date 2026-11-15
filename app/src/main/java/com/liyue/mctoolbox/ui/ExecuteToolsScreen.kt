@@ -27,10 +27,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -168,6 +177,19 @@ internal fun convertExecuteLine(line: String, keepDetect: Boolean): String {
         return "execute as $target $positionPart $check run ${commandStart.joinToString(" ")}"
     }
 
+    // 旧语法里还能再套一层 execute，递归转换里面的那条
+    if (rest[0] == "execute") {
+        val inner = convertExecuteLine(rest.joinToString(" "), keepDetect)
+        return "execute as $target $positionPart run $inner"
+    }
+
+    // 旧版还有 block 子命令的写法（少数版本支持）：execute @a x y z block <bx> <by> <bz> <block> <cmd>
+    if (rest[0] == "block" && rest.size >= 6) {
+        val block = rest[4]
+        val command = rest.drop(5).joinToString(" ")
+        return "execute as $target $positionPart if block ${rest[1]} ${rest[2]} ${rest[3]} $block run $command"
+    }
+
     return "execute as $target $positionPart run ${rest.joinToString(" ")}"
 }
 
@@ -198,6 +220,25 @@ fun TypingAnimationScreen(onBack: () -> Unit) {
             }
             add("scoreboard players add $target $objective 1")
         }
+    }
+
+    val scope = rememberCoroutineScope()
+    var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val saveZip = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        val bytes = pendingBytes
+        if (uri != null && bytes != null) {
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                    }
+                }
+            }
+        }
+    }
+    fun saveDatapack() {
+        pendingBytes = buildTypingDatapack(chars, target, objective)
+        saveZip.launch("里悦-T显动画.zip")
     }
 
     Scaffold(
@@ -262,6 +303,17 @@ fun TypingAnimationScreen(onBack: () -> Unit) {
                         },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    LiYueActionButton(
+                        text = "导出 Java 数据包（.zip）",
+                        onClick = { saveDatapack() },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = "数据包放在存档的 datapacks/ 里，进游戏执行 /reload 再 /function liyue:start 就能播。" +
+                            "文件里已经带好 #minecraft:tick 标签，不用手动挂命令方块。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = 16.dp))
@@ -296,4 +348,42 @@ private fun BlockField(
             shape = RoundedCornerShape(12.dp),
         )
     }
+}
+
+/**
+ * 打包成 Java 版数据包：pack.mcmeta + liyue:tick + liyue:start + 每帧的 title 命令。
+ * 全部写进 tick.mcfunction，靠分数匹配触发，不依赖命令方块。
+ */
+internal fun buildTypingDatapack(chars: List<Char>, target: String, objective: String): ByteArray {
+    val ns = "liyue"
+    val packMeta = """{"pack":{"pack_format":48,"description":"里悦 T 显动画"}}"""
+    val start = buildString {
+        appendLine("scoreboard objectives add $objective dummy")
+        appendLine("scoreboard players set $target $objective 0")
+        appendLine("say [里悦] T 显动画已就绪，运行 /function $ns:tick 开始")
+    }
+    val tick = buildString {
+        appendLine("scoreboard players add $target $objective 1")
+        chars.forEachIndexed { index, _ ->
+            val shown = chars.take(index + 1).joinToString("")
+            val json = "{\"text\":\"${shown.replace("\"", "\\\"")}\"}"
+            appendLine("execute if score $target $objective matches ${index + 1} run title $target title $json")
+        }
+        appendLine("execute if score $target $objective matches ${chars.size + 1} run scoreboard players set $target $objective 0")
+    }
+    val tag = """{"values":["$ns:tick"]}"""
+
+    val out = ByteArrayOutputStream()
+    ZipOutputStream(out).use { zip ->
+        fun put(path: String, text: String) {
+            zip.putNextEntry(ZipEntry(path))
+            zip.write(text.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+        }
+        put("pack.mcmeta", packMeta)
+        put("data/minecraft/tags/function/tick.json", tag)
+        put("data/$ns/function/start.mcfunction", start)
+        put("data/$ns/function/tick.mcfunction", tick)
+    }
+    return out.toByteArray()
 }

@@ -16,7 +16,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.liyue.mctoolbox.map.LiYueActionButton
 import com.liyue.mctoolbox.map.PillChip
+
+/** 这些参数的值是 {...} 结构，可以用子编辑器拼。 */
+private val NESTED_KEYS = setOf("scores", "nbt", "advancements")
 
 /** 目标选择器里常用的参数，点了就加一行。 */
 private val SELECTOR_KEYS = listOf(
@@ -71,6 +76,8 @@ fun SelectorScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var base by remember { mutableStateOf("@a") }
     val params = remember { mutableStateListOf<Pair<String, String>>() }
+    // 复合参数（scores / nbt / advancements）用子编辑器拼 {...}
+    var nestedIndex by remember { mutableStateOf(-1) }
 
     val result = remember(base, params.toList()) {
         val body = params
@@ -149,6 +156,16 @@ fun SelectorScreen(onBack: () -> Unit) {
                                 placeholder = SELECTOR_KEYS.firstOrNull { it.first == pair.first }?.second.orEmpty(),
                                 modifier = Modifier.weight(1f),
                             )
+                            if (pair.first in NESTED_KEYS) {
+                                Text(
+                                    text = "≡",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .clickable { nestedIndex = index }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
+                            }
                             Text(
                                 text = "删",
                                 style = MaterialTheme.typography.labelMedium,
@@ -201,6 +218,84 @@ fun SelectorScreen(onBack: () -> Unit) {
             }
         }
     }
+
+    if (nestedIndex in params.indices) {
+        val key = params[nestedIndex].first
+        NestedEditor(
+            title = "$key={…}",
+            initial = params[nestedIndex].second,
+            onDismiss = { nestedIndex = -1 },
+            onConfirm = { text ->
+                params[nestedIndex] = key to text
+                nestedIndex = -1
+            },
+        )
+    }
+}
+
+/** scores={a=1..,b=2} 这类复合参数的小编辑器。 */
+@Composable
+private fun NestedEditor(
+    title: String,
+    initial: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    val rows = remember {
+        mutableStateListOf<Pair<String, String>>().apply {
+            val body = initial.trim().removePrefix("{").removeSuffix("}")
+            if (body.isNotBlank()) {
+                body.split(',').forEach { part ->
+                    val idx = part.indexOf('=')
+                    if (idx > 0) add(part.substring(0, idx).trim() to part.substring(idx + 1).trim())
+                }
+            }
+            if (isEmpty()) add("" to "")
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                rows.forEachIndexed { index, pair ->
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        SmallField(
+                            value = pair.first,
+                            onChange = { rows[index] = it to pair.second },
+                            placeholder = "键",
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(" = ", style = MaterialTheme.typography.labelMedium)
+                        SmallField(
+                            value = pair.second,
+                            onChange = { rows[index] = pair.first to it },
+                            placeholder = "值",
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = "删",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .clickable { rows.removeAt(index) }
+                                .padding(8.dp),
+                        )
+                    }
+                }
+                TextButton(onClick = { rows.add("" to "") }) { Text("+ 加一项") }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val body = rows
+                    .filter { it.first.isNotBlank() }
+                    .joinToString(",") { "${it.first}=${it.second}" }
+                onConfirm(if (body.isBlank()) "" else "{$body}")
+            }) { Text("确定") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
 }
 
 @Composable
