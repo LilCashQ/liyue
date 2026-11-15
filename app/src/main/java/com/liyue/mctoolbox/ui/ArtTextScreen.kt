@@ -53,6 +53,8 @@ import com.liyue.mctoolbox.map.PillChip
 private data class ArtStyle(
     val label: String,
     val transform: (Char) -> String?,
+    /** 需要系统字体里有这些字形，否则预览会变成方块。 */
+    val probe: String,
 )
 
 private const val UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -94,7 +96,7 @@ private val DOUBLE_LOWER = "𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞
 private val DOUBLE_DIGITS = "𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡"
 
 private val ART_STYLES = listOf(
-    ArtStyle("全角") { c ->
+    ArtStyle("全角", { c ->
         when {
             c in 'A'..'Z' -> FULLWIDTH_UPPER[c - 'A'].toString()
             c in 'a'..'z' -> FULLWIDTH_LOWER[c - 'a'].toString()
@@ -102,28 +104,38 @@ private val ART_STYLES = listOf(
             c == ' ' -> "　"
             else -> null
         }
-    },
-    ArtStyle("小体大写", mapped(SMALL_CAPS_UPPER, SMALL_CAPS_UPPER)),
-    ArtStyle("圈号", mapped(CIRCLED_UPPER, CIRCLED_LOWER, "⓪①②③④⑤⑥⑦⑧⑨")),
-    ArtStyle("方框", mapped(SQUARED_UPPER, SQUARED_UPPER)),
-    ArtStyle("粗体", mapped(BOLD_UPPER, BOLD_LOWER, BOLD_DIGITS)),
-    ArtStyle("斜体", mapped(ITALIC_UPPER, ITALIC_LOWER)),
-    ArtStyle("手写体", mapped(SCRIPT_UPPER, SCRIPT_LOWER)),
-    ArtStyle("等宽", mapped(MONO_UPPER, MONO_LOWER, MONO_DIGITS)),
-    ArtStyle("空心", mapped(DOUBLE_UPPER, DOUBLE_LOWER, DOUBLE_DIGITS)),
+    }, "ＡＢＣ０１２"),
+    ArtStyle("小体大写", mapped(SMALL_CAPS_UPPER, SMALL_CAPS_UPPER), "ᴀʙᴄᴅ"),
+    ArtStyle("圈号", mapped(CIRCLED_UPPER, CIRCLED_LOWER, "⓪①②③④⑤⑥⑦⑧⑨"), "Ⓐⓐ①"),
+    ArtStyle("罗马数字", { c ->
+        when (c) {
+            '1' -> "Ⅰ"; '2' -> "Ⅱ"; '3' -> "Ⅲ"; '4' -> "Ⅳ"; '5' -> "Ⅴ"
+            '6' -> "Ⅵ"; '7' -> "Ⅶ"; '8' -> "Ⅷ"; '9' -> "Ⅸ"; '0' -> "〇"
+            else -> null
+        }
+    }, "ⅠⅡⅢ"),
+    ArtStyle("带点字母", { c ->
+        when {
+            c in 'A'..'Z' -> String(Character.toChars(0x1F1E6 + (c - 'A')))
+            else -> null
+        }
+    }, "🇦"),
+    ArtStyle("方框", mapped(SQUARED_UPPER, SQUARED_UPPER), "🄰🄱"),
+    ArtStyle("粗体", mapped(BOLD_UPPER, BOLD_LOWER, BOLD_DIGITS), "𝐀𝐁"),
+    ArtStyle("斜体", mapped(ITALIC_UPPER, ITALIC_LOWER), "𝐴𝐵"),
+    ArtStyle("手写体", mapped(SCRIPT_UPPER, SCRIPT_LOWER), "𝒜ℬ"),
+    ArtStyle("等宽", mapped(MONO_UPPER, MONO_LOWER, MONO_DIGITS), "𝙰𝙱"),
+    ArtStyle("空心", mapped(DOUBLE_UPPER, DOUBLE_LOWER, DOUBLE_DIGITS), "𝔸𝔹"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtTextScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var input by remember { mutableStateOf("里悦 LiYue 0.62") }
-    var styleIndex by remember { mutableStateOf(0) }
-    val style = ART_STYLES[styleIndex]
-    val output = remember(input, styleIndex) {
-        buildString {
-            input.forEach { c -> append(style.transform(c) ?: c.toString()) }
-        }
+    var input by remember { mutableStateOf("LiYue 0.63") }
+    // 每种风格在本机字体里是否有字形；缺字的预览会变成方块，提前标出来。
+    val supported = remember {
+        ART_STYLES.map { hasGlyphs(it.probe) }
     }
 
     Scaffold(
@@ -147,7 +159,8 @@ fun ArtTextScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "只替换字母和数字，中文与符号原样保留。游戏里显示成什么样以实际字体为准。",
+                text = "只替换字母和数字，中文与符号原样保留。带「缺字」的风格在当前系统字体里没有字形，" +
+                    "预览会显示成方块，复制到游戏里也未必正常。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -171,83 +184,94 @@ fun ArtTextScreen(onBack: () -> Unit) {
                 shape = RoundedCornerShape(14.dp),
             )
 
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 2.dp),
-            ) {
-                items(ART_STYLES.size) { index ->
-                    PillChip(
-                        label = ART_STYLES[index].label,
-                        selected = index == styleIndex,
-                        onClick = { styleIndex = index },
-                    )
-                }
-            }
+            Text(
+                text = "全部风格（共 ${ART_STYLES.size} 种）",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "转换结果",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = output.ifEmpty { "（空）" },
-                        style = TextStyle(fontSize = 22.sp, lineHeight = 34.sp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 60.dp),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        LiYueActionButton(
-                            text = "复制结果",
-                            onClick = {
-                                val clip = context.getSystemService(ClipboardManager::class.java)
-                                clip?.setPrimaryClip(ClipData.newPlainText(output, output))
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
-                        LiYueActionButton(
-                            text = "清空",
-                            onClick = { input = "" },
-                            modifier = Modifier.weight(1f),
+            ART_STYLES.forEachIndexed { index, style ->
+                val ok = supported[index]
+                val output = remember(input, index) {
+                    buildString { input.forEach { c -> append(style.transform(c) ?: c.toString()) } }
+                }
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Text(
+                                text = style.label,
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (!ok) {
+                                Text(
+                                    text = "缺字",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                                androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = 4.dp))
+                            }
+                            Text(
+                                text = "复制",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (ok) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outline,
+                                modifier = Modifier
+                                    .clickable(enabled = input.isNotBlank()) {
+                                        val clip = context.getSystemService(ClipboardManager::class.java)
+                                        clip?.setPrimaryClip(ClipData.newPlainText(output, output))
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                        Text(
+                            text = output.ifBlank { "（先在上面输入文字）" },
+                            style = TextStyle(fontSize = 20.sp, lineHeight = 28.sp),
+                            color = if (ok) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("兼容性说明", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        text = "其它尝试",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "· 全角适合做告示牌标题，等宽组合适合做坐标板\n" +
-                            "· 圈号和小体大写在某些字体里会掉字，先用预览确认\n" +
-                            "· 复制后在聊天框里粘贴，按 F3+T（Java 版）能让字形刷新",
+                        text = "Java 版默认字体只有拉丁、希腊、西里尔和中文，数学字母（粗体/斜体/手写/等宽/空心/方框）在游戏里通常显示成方块；" +
+                            "基岩版字体覆盖面广一些。想稳妥就用「全角」和「小体大写」。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "试试示例",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clickable { input = "Welcome to LiYue" }
-                            .padding(vertical = 4.dp),
+                        text = "Java 版里按 F3+T 可以刷新字体缓存，粘贴后才看得到效果。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = 16.dp))
         }
     }
+}
+
+/** 逐个码点问系统字体有没有字形；缺一个就认为这种风格不可靠。 */
+private fun hasGlyphs(probe: String): Boolean {
+    val paint = android.graphics.Paint()
+    paint.typeface = android.graphics.Typeface.DEFAULT
+    var i = 0
+    while (i < probe.length) {
+        val cp = probe.codePointAt(i)
+        if (!paint.hasGlyph(String(Character.toChars(cp)))) return false
+        i += Character.charCount(cp)
+    }
+    return true
 }
