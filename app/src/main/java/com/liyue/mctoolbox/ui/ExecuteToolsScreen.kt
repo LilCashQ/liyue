@@ -197,30 +197,12 @@ internal fun convertExecuteLine(line: String, keepDetect: Boolean): String {
 @Composable
 fun TypingAnimationScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var text by remember { mutableStateOf("欢迎来到里悦") }
+    var objective by remember { mutableStateOf("T显") }
+    var initialScore by remember { mutableStateOf("") }
+    var initialize by remember { mutableStateOf(false) }
+    var text by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf("") }
     var target by remember { mutableStateOf("@a") }
-    var objective by remember { mutableStateOf("tr") }
-    var wrapExecute by remember { mutableStateOf(true) }
-
-    val chars = remember(text) { text.replace("\n", " ").toList() }
-    val commands = remember(chars, target, objective, wrapExecute) {
-        buildList {
-            add("scoreboard objectives add $objective dummy")
-            add("scoreboard players set $target $objective 0")
-            chars.forEachIndexed { index, _ ->
-                val shown = chars.take(index + 1).joinToString("")
-                val json = "{\"rawtext\":[{\"text\":\"${shown.replace("\"", "\\\"")}\"}]}"
-                add(
-                    if (wrapExecute) {
-                        "execute if score $target $objective matches ${index + 1} run titleraw $target title $json"
-                    } else {
-                        "titleraw $target title $json"
-                    }
-                )
-            }
-            add("scoreboard players add $target $objective 1")
-        }
-    }
 
     val scope = rememberCoroutineScope()
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -229,22 +211,16 @@ fun TypingAnimationScreen(onBack: () -> Unit) {
         if (uri != null && bytes != null) {
             scope.launch {
                 withContext(Dispatchers.IO) {
-                    runCatching {
-                        context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
-                    }
+                    runCatching { context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } }
                 }
             }
         }
-    }
-    fun saveDatapack() {
-        pendingBytes = buildTypingDatapack(chars, target, objective)
-        saveZip.launch("里悦-T显动画.zip")
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("T 显动画") },
+                title = { Text("T 显动画生成") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
@@ -262,25 +238,92 @@ fun TypingAnimationScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "打字机效果：计分板每加 1，标题多显示一个字。共 ${chars.size} 个字，会生成 ${commands.size} 条命令。",
+                text = "生成打字机动画效果的 rawJSON",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            BlockField(value = text, onChange = { text = it }, label = "显示的文字", minLines = 2)
-            BlockField(value = target, onChange = { target = it }, label = "目标", minLines = 1)
-            BlockField(value = objective, onChange = { objective = it }, label = "计分板名", minLines = 1)
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FieldLabel("计分板名称")
+                    BlockField(
+                        value = objective,
+                        onChange = { objective = it },
+                        label = "",
+                        minLines = 1,
+                        placeholder = "例如：T显",
+                    )
+                    Text(
+                        text = "动画靠这个计分板的分数推进，分数加 1 字数加 1",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
 
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Checkbox(
-                    checked = wrapExecute,
-                    onCheckedChange = { wrapExecute = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary,
-                        uncheckedColor = MaterialTheme.colorScheme.outline,
-                    ),
-                )
-                Text("每条外面套 execute if score（关掉只输出 titleraw）", style = MaterialTheme.typography.bodySmall)
+                    FieldLabel("初始的分数")
+                    BlockField(
+                        value = initialScore,
+                        onChange = { initialScore = it },
+                        label = "",
+                        minLines = 1,
+                        placeholder = "不填默认为 0",
+                    )
+
+                    FieldLabel("是否初始化")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PillChip(label = "否", selected = !initialize, onClick = { initialize = false })
+                        PillChip(label = "是", selected = initialize, onClick = { initialize = true })
+                    }
+                    Text(
+                        text = "选「是」时每条外面会再套一层 /execute 与 titleraw，可直接整条粘贴执行；" +
+                            "选「否」只输出 rawJSON 片段。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    FieldLabel("输入文本")
+                    BlockField(
+                        value = text,
+                        onChange = { text = it },
+                        label = "",
+                        minLines = 4,
+                        placeholder = "支持 §颜色码 和 \\n 换行",
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        LiYueActionButton(
+                            text = "转换",
+                            onClick = {
+                                result = buildTypingFrames(
+                                    text = text,
+                                    objective = objective.ifBlank { "T显" },
+                                    target = target,
+                                    initialize = initialize,
+                                    initialScore = initialScore.trim().toIntOrNull() ?: 0,
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        LiYueActionButton(
+                            text = "复制",
+                            onClick = {
+                                if (result.isNotBlank()) {
+                                    val clip = context.getSystemService(ClipboardManager::class.java)
+                                    clip?.setPrimaryClip(ClipData.newPlainText(result, result))
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        LiYueActionButton(
+                            text = "清空",
+                            onClick = { text = ""; result = "" },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
 
             Surface(
@@ -289,31 +332,27 @@ fun TypingAnimationScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("命令", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("转换结果", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        text = commands.joinToString("\n"),
+                        text = result.ifBlank { "转换结果将显示在这里…" },
                         style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp),
+                        color = if (result.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.onSurface,
                     )
-                    LiYueActionButton(
-                        text = "复制全部命令",
-                        onClick = {
-                            val clip = context.getSystemService(ClipboardManager::class.java)
-                            val all = commands.joinToString("\n")
-                            clip?.setPrimaryClip(ClipData.newPlainText(all, all))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    LiYueActionButton(
-                        text = "导出 Java 数据包（.zip）",
-                        onClick = { saveDatapack() },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        text = "数据包放在存档的 datapacks/ 里，进游戏执行 /reload 再 /function liyue:start 就能播。" +
-                            "文件里已经带好 #minecraft:tick 标签，不用手动挂命令方块。",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (result.isNotBlank()) {
+                        LiYueActionButton(
+                            text = "导出 Java 数据包（.zip）",
+                            onClick = {
+                                pendingBytes = buildTypingDatapack(
+                                    chars = text.replace("\n", " ").toList(),
+                                    target = target,
+                                    objective = objective.ifBlank { "T显" },
+                                )
+                                saveZip.launch("里悦-T显动画.zip")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
             androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = 16.dp))
@@ -322,14 +361,53 @@ fun TypingAnimationScreen(onBack: () -> Unit) {
 }
 
 @Composable
+private fun FieldLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+}
+
+/**
+ * 逐字生成：每行一个 rawJSON 帧；选择初始化时前面套 execute if score + titleraw。
+ * 支持 §颜色码，\n 会转成 JSON 里的换行转义。
+ */
+internal fun buildTypingFrames(
+    text: String,
+    objective: String,
+    target: String,
+    initialize: Boolean,
+    initialScore: Int,
+): String {
+    val chars = text.replace("\n", " ").toList()
+    if (chars.isEmpty()) return ""
+    val head = buildString {
+        if (initialize) {
+            appendLine("scoreboard objectives add $objective dummy")
+            appendLine("scoreboard players set $target $objective $initialScore")
+        }
+    }
+    val frames = chars.indices.joinToString("\n") { index ->
+        val shown = chars.take(index + 1).joinToString("")
+        val json = "{\"rawtext\":[{\"text\":\"${shown.replace("\"", "\\\"")}\"}]}"
+        if (initialize) {
+            "execute if score $target $objective matches ${initialScore + index + 1} run titleraw $target title $json"
+        } else {
+            json
+        }
+    }
+    return head + frames
+}
+
+@Composable
 private fun BlockField(
     value: String,
     onChange: (String) -> Unit,
     label: String,
     minLines: Int,
+    placeholder: String = "",
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (label.isNotBlank()) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         TextField(
             value = value,
             onValueChange = onChange,
@@ -337,7 +415,8 @@ private fun BlockField(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
             minLines = minLines,
-            maxLines = 8,
+            maxLines = 10,
+            placeholder = if (placeholder.isBlank()) null else ({ Text(placeholder) }),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
