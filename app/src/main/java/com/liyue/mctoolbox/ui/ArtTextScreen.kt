@@ -170,7 +170,7 @@ fun ArtTextScreen(onBack: () -> Unit) {
                 onValueChange = { input = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(0.dp)),
                 placeholder = { Text("输入要转换的文字") },
                 minLines = 2,
                 maxLines = 4,
@@ -181,7 +181,7 @@ fun ArtTextScreen(onBack: () -> Unit) {
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(0.dp),
             )
 
             Text(
@@ -196,7 +196,7 @@ fun ArtTextScreen(onBack: () -> Unit) {
                     buildString { input.forEach { c -> append(style.transform(c) ?: c.toString()) } }
                 }
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(0.dp),
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -239,7 +239,7 @@ fun ArtTextScreen(onBack: () -> Unit) {
             }
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {

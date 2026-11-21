@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
@@ -123,7 +123,7 @@ fun AboutScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(132.dp)
-                    .clip(RoundedCornerShape(18.dp)),
+                    .clip(RoundedCornerShape(0.dp)),
             ) {
                 androidx.compose.foundation.Image(
                     painter = androidx.compose.ui.res.painterResource(com.liyue.mctoolbox.R.drawable.about_banner),
@@ -270,7 +270,7 @@ fun AboutScreen(
 @Composable
 private fun AccountCard(user: AuthUser?, onLogin: () -> Unit, onLogout: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(0.dp),
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
@@ -290,7 +290,7 @@ private fun AccountCard(user: AuthUser?, onLogin: () -> Unit, onLogout: () -> Un
                         .size(48.dp)
                         .background(
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                            CircleShape,
+                            RectangleShape,
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -325,7 +325,7 @@ private fun AccountCard(user: AuthUser?, onLogin: () -> Unit, onLogout: () -> Un
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onLogout),
-                    shape = RoundedCornerShape(50),
+                    shape = RoundedCornerShape(0.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
                 ) {
                     Text(
@@ -354,7 +354,7 @@ private fun SectionLabel(text: String) {
 @Composable
 private fun RowCard(row: AboutRow, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(0.dp),
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
@@ -373,7 +373,7 @@ private fun RowCard(row: AboutRow, onClick: () -> Unit) {
                     .size(34.dp)
                     .background(
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.09f),
-                        RoundedCornerShape(10.dp),
+                        RoundedCornerShape(0.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {

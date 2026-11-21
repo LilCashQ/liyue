@@ -143,7 +143,7 @@ fun JavaIdTableScreen(onBack: () -> Unit) {
                 onValueChange = { query = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(0.dp)),
                 placeholder = { Text("搜中文名 / 英文 ID / 数字 ID，例如 钻石、stone、1:1") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
@@ -161,7 +161,7 @@ fun JavaIdTableScreen(onBack: () -> Unit) {
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(0.dp),
             )
 
             LazyRow(
@@ -192,7 +192,7 @@ fun JavaIdTableScreen(onBack: () -> Unit) {
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .fillMaxWidth()

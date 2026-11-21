@@ -163,7 +163,7 @@ fun IdTableScreen(onBack: () -> Unit) {
                 onValueChange = { query = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(0.dp)),
                 placeholder = { Text("搜 ID 或中文名，例如 diamond、燧石") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
@@ -181,7 +181,7 @@ fun IdTableScreen(onBack: () -> Unit) {
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(0.dp),
             )
 
             LazyRow(
@@ -205,7 +205,7 @@ fun IdTableScreen(onBack: () -> Unit) {
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .fillMaxWidth()

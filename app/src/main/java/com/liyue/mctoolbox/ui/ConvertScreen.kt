@@ -319,7 +319,7 @@ fun ConvertScreen(onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(0.dp),
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -372,7 +372,7 @@ fun ConvertScreen(onBack: () -> Unit) {
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(0.dp),
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -491,7 +491,7 @@ fun ConvertScreen(onBack: () -> Unit) {
 
                     if (busy) {
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(0.dp),
                             color = MaterialTheme.colorScheme.surface,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -529,7 +529,7 @@ fun ConvertScreen(onBack: () -> Unit) {
                                 Spacer(Modifier.height(10.dp))
                                 androidx.compose.material3.OutlinedButton(
                                     onClick = { cancelConversion() },
-                                    shape = RoundedCornerShape(50),
+                                    shape = RoundedCornerShape(0.dp),
                                 ) { Text("取消") }
                             }
                         }
@@ -542,7 +542,7 @@ fun ConvertScreen(onBack: () -> Unit) {
                                 .height(54.dp)
                                 .background(
                                     MaterialTheme.colorScheme.primaryContainer,
-                                    RoundedCornerShape(50),
+                                    RoundedCornerShape(0.dp),
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -588,7 +588,7 @@ fun ConvertScreen(onBack: () -> Unit) {
                                     .size(56.dp)
                                     .background(
                                         MaterialTheme.colorScheme.surfaceVariant,
-                                        RoundedCornerShape(18.dp),
+                                        RoundedCornerShape(0.dp),
                                     ),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -610,7 +610,7 @@ fun ConvertScreen(onBack: () -> Unit) {
                         LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp)) {
                             items(outputs) { output ->
                                 Surface(
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(0.dp),
                                     color = MaterialTheme.colorScheme.surface,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -684,7 +684,7 @@ private fun ConvertHeader(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
+                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(0.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -741,7 +741,7 @@ private fun ConvertTabs(selected: ConvertTab, onSelect: (ConvertTab) -> Unit) {
                         .size(width = 22.dp, height = 3.dp)
                         .background(
                             if (active) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,
-                            RoundedCornerShape(2.dp),
+                            RoundedCornerShape(0.dp),
                         ),
                 )
             }
@@ -821,7 +821,7 @@ private fun SegmentedRow(
     onSelect: (String) -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(0.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -834,7 +834,7 @@ private fun SegmentedRow(
                         .height(44.dp)
                         .background(
                             if (active) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent,
-                            RoundedCornerShape(11.dp),
+                            RoundedCornerShape(0.dp),
                         )
                         .clickable { onSelect(id) },
                     contentAlignment = Alignment.Center,
@@ -863,7 +863,7 @@ private fun PickerCard(
     onClick: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(0.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier
             .fillMaxWidth()

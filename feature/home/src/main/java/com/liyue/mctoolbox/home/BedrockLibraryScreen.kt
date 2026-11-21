@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -198,7 +198,7 @@ fun BedrockLibraryScreen(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(0.dp),
                 textStyle = MaterialTheme.typography.bodyMedium,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -299,7 +299,7 @@ fun BedrockLibraryScreen(
 @Composable
 private fun ChannelPill(label: String, active: Boolean, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(0.dp),
         color = if (active) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
@@ -329,7 +329,7 @@ private fun ReleaseCard(
     onMap: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(0.dp),
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -393,7 +393,7 @@ private fun MirrorButton(label: String, onClick: () -> Unit) {
     Text(
         text = label,
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(0.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 4.dp),
         style = MaterialTheme.typography.labelLarge,

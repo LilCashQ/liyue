@@ -113,7 +113,7 @@ fun ExecuteConvertScreen(onBack: () -> Unit) {
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -244,7 +244,7 @@ fun TypingAnimationScreen(onBack: () -> Unit) {
             )
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -327,7 +327,7 @@ fun TypingAnimationScreen(onBack: () -> Unit) {
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -413,7 +413,7 @@ private fun BlockField(
             onValueChange = onChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(0.dp)),
             minLines = minLines,
             maxLines = 10,
             placeholder = if (placeholder.isBlank()) null else ({ Text(placeholder) }),
@@ -424,7 +424,7 @@ private fun BlockField(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(0.dp),
         )
     }
 }

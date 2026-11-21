@@ -112,7 +112,7 @@ fun ToolsScreen(
 private fun CategoryHeader(category: ToolCategory, tint: Int, modifier: Modifier = Modifier) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(0.dp),
             color = androidx.compose.ui.graphics.Color(tint),
             modifier = Modifier.size(34.dp),
         ) {
@@ -154,7 +154,7 @@ private fun CategoryCard(
                 scaleX = scale
                 scaleY = scale
             },
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(0.dp),
         color = androidx.compose.ui.graphics.Color(tint).copy(alpha = 0.55f),
         onClick = onClick,
         interactionSource = interaction,
@@ -162,7 +162,7 @@ private fun CategoryCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.72f),
                 modifier = Modifier.size(40.dp),
             ) {

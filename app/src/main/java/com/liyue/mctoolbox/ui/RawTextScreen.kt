@@ -140,7 +140,7 @@ fun RawTextScreen(onBack: () -> Unit) {
             )
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -164,7 +164,7 @@ fun RawTextScreen(onBack: () -> Unit) {
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -232,7 +232,7 @@ fun RawTextScreen(onBack: () -> Unit) {
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -280,7 +280,7 @@ private fun PlainField(value: String, onChange: (String) -> Unit, placeholder: S
         onValueChange = onChange,
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(0.dp)),
         placeholder = { Text(placeholder) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -290,6 +290,6 @@ private fun PlainField(value: String, onChange: (String) -> Unit, placeholder: S
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
         ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(0.dp),
     )
 }

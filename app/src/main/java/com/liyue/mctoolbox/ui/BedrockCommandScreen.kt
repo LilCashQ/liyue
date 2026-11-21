@@ -136,7 +136,7 @@ fun BedrockCommandScreen(onBack: () -> Unit) {
                 onValueChange = { query = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(0.dp)),
                 placeholder = { Text("搜命令或说明，例如 effect、传送") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
@@ -154,7 +154,7 @@ fun BedrockCommandScreen(onBack: () -> Unit) {
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(0.dp),
             )
 
             Row(
@@ -174,7 +174,7 @@ fun BedrockCommandScreen(onBack: () -> Unit) {
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(0.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -262,7 +262,7 @@ fun BedrockCommandScreen(onBack: () -> Unit) {
                 )
                 if (entry.syntax.isNotEmpty()) {
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(0.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.fillMaxWidth(),
                     ) {

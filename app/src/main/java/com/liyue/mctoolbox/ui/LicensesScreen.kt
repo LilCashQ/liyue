@@ -260,7 +260,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.group(
     }
     item(key = "card-$title") {
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(0.dp),
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -291,7 +291,7 @@ private fun ProjectRow(project: Project, onClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .background(project.tint.copy(alpha = 0.14f), RoundedCornerShape(12.dp)),
+                .background(project.tint.copy(alpha = 0.14f), RoundedCornerShape(0.dp)),
             contentAlignment = Alignment.Center,
         ) {
             if (project.iconRes != null) {
@@ -325,7 +325,7 @@ private fun ProjectRow(project: Project, onClick: () -> Unit) {
                     modifier = Modifier
                         .background(
                             MaterialTheme.colorScheme.surfaceVariant,
-                            RoundedCornerShape(6.dp),
+                            RoundedCornerShape(0.dp),
                         )
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 )

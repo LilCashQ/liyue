@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -317,7 +317,7 @@ private fun HeroLaunchCard(
 ) {
     val installed = installedVersion != null
     Surface(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(0.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -356,7 +356,7 @@ private fun HeroLaunchCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(4.dp)
-                            .clip(CircleShape),
+                            .clip(RectangleShape),
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -432,7 +432,7 @@ private fun TextLink(text: String, onClick: () -> Unit) {
         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(0.dp))
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f))
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -468,7 +468,7 @@ internal fun CubeMark(size: Dp = 52.dp, corner: Dp = 16.dp) {
     Canvas(
         modifier = Modifier
             .size(size)
-            .clip(RoundedCornerShape(corner))
+            .clip(RoundedCornerShape(0.dp))
             .background(MaterialTheme.colorScheme.primary),
     ) {
         val w = this.size.width
