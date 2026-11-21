@@ -51,12 +51,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.core.animateFloatAsState
 
-private val Bg = Color(0xFF2B2B2B)
-private val CardFill = Color(0xFF4A423A)
-private val CardEdge = Color(0xFF8A8A8A)
-private val AccentGreen = Color(0xFF6FBF3F)
+private val Bg = Color(0xFF3E3B37)
+private val CardFill = Color(0xFF5E5449)
+private val CardEdge = Color(0xFFB0B0B0)
+private val AccentGreen = Color(0xFF7ED04A)
 private val TextMain = Color(0xFFF2F2F2)
-private val TextSub = Color(0xFFB8AFA4)
+private val TextSub = Color(0xFFCFC6BA)
 
 /** 像素风工具页：大标题 + 右上搜索，2 列像素卡片。 */
 @Composable

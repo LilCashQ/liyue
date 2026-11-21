@@ -64,6 +64,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
 
 private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, ID_TABLE, JAVA_ID_TABLE, COMMANDS, ART_TEXT, RAW_TEXT, SELECTOR, EXECUTE_FIX, TYPING, LICENSES, DEBUG, AUTH }
 private enum class Tab { LAUNCH, TOOLS, ABOUT }
@@ -265,38 +275,9 @@ private fun MainTabs(
 ) {
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                containerColor = androidx.compose.ui.graphics.Color(0xFF4A423A),
-                tonalElevation = 0.dp,
-            ) {
-                val barColors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = androidx.compose.ui.graphics.Color(0xFF6FBF3F),
-                    indicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                    unselectedIconColor = androidx.compose.ui.graphics.Color(0xFFB8AFA4),
-                    unselectedTextColor = androidx.compose.ui.graphics.Color(0xFFB8AFA4),
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.LAUNCH,
-                    onClick = { onTabChange(Tab.LAUNCH) },
-                    icon = { Image(painterResource(com.liyue.mctoolbox.home.PixelIcons.navLaunch), contentDescription = null, modifier = Modifier.size(22.dp)) },
-                    label = { Text("启动游戏") },
-                    colors = barColors,
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.TOOLS,
-                    onClick = { onTabChange(Tab.TOOLS) },
-                    icon = { Image(painterResource(com.liyue.mctoolbox.home.PixelIcons.navTools), contentDescription = null, modifier = Modifier.size(22.dp)) },
-                    label = { Text("工具") },
-                    colors = barColors,
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.ABOUT,
-                    onClick = { onTabChange(Tab.ABOUT) },
-                    icon = { Image(painterResource(com.liyue.mctoolbox.home.PixelIcons.navAbout), contentDescription = null, modifier = Modifier.size(22.dp)) },
-                    label = { Text("关于") },
-                    colors = barColors,
-                )
+            Column {
+                PixelHintBar()
+                PixelNavBar(tab = tab, onTabChange = onTabChange)
             }
         },
     ) { padding ->
@@ -320,5 +301,81 @@ private fun MainTabs(
                 )
             }
         }
+    }
+}
+
+private val NavFill = androidx.compose.ui.graphics.Color(0xFF5E5449)
+private val NavGreen = androidx.compose.ui.graphics.Color(0xFF7ED04A)
+private val NavText = androidx.compose.ui.graphics.Color(0xFFE9E1D6)
+
+/** 底部三格导航：选中一格铺草绿方块。 */
+@Composable
+private fun PixelNavBar(tab: Tab, onTabChange: (Tab) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(NavFill)
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+    ) {
+        listOf(
+            Triple(Tab.LAUNCH, "启动游戏", com.liyue.mctoolbox.home.PixelIcons.navLaunch),
+            Triple(Tab.TOOLS, "工具", com.liyue.mctoolbox.home.PixelIcons.navTools),
+            Triple(Tab.ABOUT, "关于", com.liyue.mctoolbox.home.PixelIcons.navAbout),
+        ).forEach { (target, label, iconRes) ->
+            val selected = tab == target
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onTabChange(target) }
+                    .padding(horizontal = 4.dp),
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (selected) NavGreen else androidx.compose.ui.graphics.Color.Transparent)
+                        .padding(vertical = 6.dp),
+                ) {
+                    Image(
+                        painter = painterResource(iconRes),
+                        contentDescription = label,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (selected) androidx.compose.ui.graphics.Color(0xFF1E1E1E) else NavText,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 底栏上面的像素提示条。 */
+@Composable
+private fun PixelHintBar() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(androidx.compose.ui.graphics.Color(0xFF4A4540))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(com.liyue.mctoolbox.home.R.drawable.pxg_torch),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "提示：工具仅用于游戏创作与学习。像素让想象更自由！",
+            style = MaterialTheme.typography.labelSmall,
+            color = androidx.compose.ui.graphics.Color(0xFFD9D0C3),
+        )
     }
 }
