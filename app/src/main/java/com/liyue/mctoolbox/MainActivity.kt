@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -30,6 +31,7 @@ import com.liyue.mctoolbox.auth.AuthViewModel
 import com.liyue.mctoolbox.feature.seeddebug.SeedGenScreen
 import com.liyue.mctoolbox.home.BedrockLibraryScreen
 import com.liyue.mctoolbox.home.HomeScreen
+import com.liyue.mctoolbox.home.LaunchScreen
 import com.liyue.mctoolbox.home.ToolCatalog
 import com.liyue.mctoolbox.home.ToolEntry
 import com.liyue.mctoolbox.map.MapTarget
@@ -58,7 +60,7 @@ import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, ID_TABLE, JAVA_ID_TABLE, COMMANDS, ART_TEXT, RAW_TEXT, SELECTOR, EXECUTE_FIX, TYPING, LICENSES, DEBUG, AUTH }
-private enum class Tab { HOME, TOOLS, ABOUT }
+private enum class Tab { LAUNCH, TOOLS, ABOUT }
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -73,7 +75,7 @@ class MainActivity : ComponentActivity() {
                     getSharedPreferences("liyue_ui", Context.MODE_PRIVATE)
                 }
                 var screen by rememberSaveable { mutableStateOf(Screen.TABS) }
-                var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+                var tab by rememberSaveable { mutableStateOf(Tab.LAUNCH) }
                 var recentToolIds by rememberSaveable {
                     mutableStateOf(prefs.getString("recent_tools", null))
                 }
@@ -259,15 +261,15 @@ private fun MainTabs(
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    selected = tab == Tab.HOME,
-                    onClick = { onTabChange(Tab.HOME) },
-                    icon = { Icon(Icons.Filled.List, contentDescription = null) },
-                    label = { Text("功能") },
+                    selected = tab == Tab.LAUNCH,
+                    onClick = { onTabChange(Tab.LAUNCH) },
+                    icon = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
+                    label = { Text("启动游戏") },
                 )
                 NavigationBarItem(
                     selected = tab == Tab.TOOLS,
                     onClick = { onTabChange(Tab.TOOLS) },
-                    icon = { Icon(Icons.Filled.Star, contentDescription = null) },
+                    icon = { Icon(Icons.Filled.List, contentDescription = null) },
                     label = { Text("工具") },
                 )
                 NavigationBarItem(
@@ -285,14 +287,11 @@ private fun MainTabs(
                 .padding(padding),
         ) {
             when (tab) {
-                Tab.HOME -> HomeScreen(
+                Tab.LAUNCH -> LaunchScreen()
+                Tab.TOOLS -> HomeScreen(
                     recentToolIds = recentToolIds,
                     frequentToolIds = frequentToolIds,
                     onOpenTool = onOpenTool,
-                )
-                Tab.TOOLS -> ToolsScreen(
-                    onBack = { onTabChange(Tab.HOME) },
-                    onOpenTool = { id -> ToolCatalog.byId(id)?.let(onOpenTool) },
                 )
                 Tab.ABOUT -> AboutScreen(
                     user = user,
