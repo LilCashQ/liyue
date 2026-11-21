@@ -44,14 +44,21 @@ import androidx.compose.ui.unit.dp
 import com.liyue.mctoolbox.home.ToolCatalog
 import com.liyue.mctoolbox.home.ToolCategory
 import com.liyue.mctoolbox.home.ToolEntry
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 
 /** 每组一个淡色底，与参考应用「推荐/玩机/解析」的处理一致。 */
+/** 每组一个强调色：深底 + 彩色像素描边。 */
 private val GROUP_TINTS: IntArray = intArrayOf(
-    0xFFE4EAF9.toInt(), // 淡蓝
-    0xFFF3E8F6.toInt(), // 淡紫
-    0xFFE9F3EA.toInt(), // 淡绿
-    0xFFF9EDE4.toInt(), // 淡橙
-    0xFFE4F0F5.toInt(), // 淡青
+    0xFF4A90D9.toInt(), // 蓝
+    0xFFB4553F.toInt(), // 红棕
+    0xFF5FA83C.toInt(), // 草绿
+    0xFFD9A441.toInt(), // 金
+    0xFF8B6FBF.toInt(), // 紫
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,57 +150,108 @@ private fun CategoryCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.972f else 1f, label = "catCardPress")
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, label = "catCardPress")
     val enabled = tool.available
+    val accent = androidx.compose.ui.graphics.Color(tint)
+    val iconRes = com.liyue.mctoolbox.home.PixelIcons.tool(tool.id)
 
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(148.dp)
+            .height(126.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-            },
-        shape = RoundedCornerShape(0.dp),
-        color = androidx.compose.ui.graphics.Color(tint).copy(alpha = 0.55f),
-        onClick = onClick,
-        interactionSource = interaction,
-        enabled = enabled,
+            }
+            .pixelCard(accent, enabled)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Surface(
-                shape = RoundedCornerShape(0.dp),
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.72f),
-                modifier = Modifier.size(40.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+        Column(Modifier.fillMaxSize()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (iconRes != null) {
+                    Image(
+                        painter = painterResource(iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                } else {
                     Icon(
                         imageVector = tool.icon,
                         contentDescription = null,
-                        tint = if (enabled) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(21.dp),
+                        tint = accent,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
             Spacer(Modifier.weight(1f))
             Text(
                 text = tool.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (enabled) androidx.compose.ui.graphics.Color(0xFFF2F2F2)
+                else androidx.compose.ui.graphics.Color(0xFF8A8A8A),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = if (enabled) tool.subtitle else "即将上线",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Spacer(Modifier.height(4.dp))
+            if (enabled) {
+                Text(
+                    text = tool.subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.ui.graphics.Color(0xFF9A9A9A),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                ComingSoonTag()
+            }
         }
     }
 }
+
+/** 「即将上线」像素胶囊：2px 描边 + 时钟方块。 */
+@Composable
+private fun ComingSoonTag() {
+    Row(
+        modifier = Modifier
+            .border(2.dp, androidx.compose.ui.graphics.Color(0xFFD9A441))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "即将上线",
+            style = MaterialTheme.typography.labelSmall,
+            color = androidx.compose.ui.graphics.Color(0xFFD9A441),
+        )
+    }
+}
+
+/** 像素卡：深底、2px 描边、四角各一块强调色像素点。 */
+private fun Modifier.pixelCard(accent: androidx.compose.ui.graphics.Color, enabled: Boolean): Modifier =
+    this
+        .background(if (enabled) androidx.compose.ui.graphics.Color(0xFF161B22) else androidx.compose.ui.graphics.Color(0xFF121212))
+        .drawBehind {
+            val w = size.width
+            val h = size.height
+            val b = 2.dp.toPx()
+            val c = 5.dp.toPx()
+            val line = if (enabled) accent.copy(alpha = 0.75f) else androidx.compose.ui.graphics.Color(0xFF3A3A3A)
+            drawRect(line, size = androidx.compose.ui.geometry.Size(w, b))
+            drawRect(line, topLeft = androidx.compose.ui.geometry.Offset(0f, h - b), size = androidx.compose.ui.geometry.Size(w, b))
+            drawRect(line, size = androidx.compose.ui.geometry.Size(b, h))
+            drawRect(line, topLeft = androidx.compose.ui.geometry.Offset(w - b, 0f), size = androidx.compose.ui.geometry.Size(b, h))
+            if (enabled) {
+                listOf(
+                    androidx.compose.ui.geometry.Offset(0f, 0f) to androidx.compose.ui.geometry.Size(c, c),
+                    androidx.compose.ui.geometry.Offset(w - c, 0f) to androidx.compose.ui.geometry.Size(c, c),
+                    androidx.compose.ui.geometry.Offset(0f, h - c) to androidx.compose.ui.geometry.Size(c, c),
+                    androidx.compose.ui.geometry.Offset(w - c, h - c) to androidx.compose.ui.geometry.Size(c, c),
+                ).forEach { (offset, sz) -> drawRect(accent, topLeft = offset, size = sz) }
+            }
+        }

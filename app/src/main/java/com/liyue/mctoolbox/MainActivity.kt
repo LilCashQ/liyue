@@ -61,6 +61,9 @@ import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.res.painterResource
 
 private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, ID_TABLE, JAVA_ID_TABLE, COMMANDS, ART_TEXT, RAW_TEXT, SELECTOR, EXECUTE_FIX, TYPING, LICENSES, DEBUG, AUTH }
 private enum class Tab { LAUNCH, TOOLS, ABOUT }
@@ -276,21 +279,21 @@ private fun MainTabs(
                 NavigationBarItem(
                     selected = tab == Tab.LAUNCH,
                     onClick = { onTabChange(Tab.LAUNCH) },
-                    icon = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
+                    icon = { Image(painterResource(com.liyue.mctoolbox.home.PixelIcons.navLaunch), contentDescription = null, modifier = Modifier.size(22.dp)) },
                     label = { Text("启动游戏") },
                     colors = barColors,
                 )
                 NavigationBarItem(
                     selected = tab == Tab.TOOLS,
                     onClick = { onTabChange(Tab.TOOLS) },
-                    icon = { Icon(Icons.Filled.List, contentDescription = null) },
+                    icon = { Image(painterResource(com.liyue.mctoolbox.home.PixelIcons.navTools), contentDescription = null, modifier = Modifier.size(22.dp)) },
                     label = { Text("工具") },
                     colors = barColors,
                 )
                 NavigationBarItem(
                     selected = tab == Tab.ABOUT,
                     onClick = { onTabChange(Tab.ABOUT) },
-                    icon = { Icon(Icons.Filled.Info, contentDescription = null) },
+                    icon = { Image(painterResource(com.liyue.mctoolbox.home.PixelIcons.navAbout), contentDescription = null, modifier = Modifier.size(22.dp)) },
                     label = { Text("关于") },
                     colors = barColors,
                 )
