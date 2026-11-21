@@ -82,6 +82,14 @@ object LauncherBridge {
         val explicitError = runCatching { context.startActivity(explicit) }.exceptionOrNull()
         if (explicitError == null) return null
 
+        // Older/modified launcher builds may not retain the custom action filter.
+        val componentOnly = Intent().apply {
+            setClassName(PACKAGE, ACTIVITY)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val componentError = runCatching { context.startActivity(componentOnly) }.exceptionOrNull()
+        if (componentError == null) return null
+
         val fallback = context.packageManager.getLaunchIntentForPackage(PACKAGE)
         if (fallback != null) {
             fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -89,7 +97,7 @@ object LauncherBridge {
             if (fallbackError == null) return null
             return describe(fallbackError)
         }
-        return describe(explicitError)
+        return describe(componentError)
     }
 
     private fun describe(error: Throwable): String = when (error) {
