@@ -271,10 +271,10 @@ fun AboutScreen(
 private fun AccountCard(user: AuthUser?, onLogin: () -> Unit, onLogout: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(0.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = androidx.compose.ui.graphics.Color(0xFF5E5449),
         border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant,
+            2.dp,
+            androidx.compose.ui.graphics.Color(0xFFB0B0B0),
         ),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -355,10 +355,10 @@ private fun SectionLabel(text: String) {
 private fun RowCard(row: AboutRow, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(0.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = androidx.compose.ui.graphics.Color(0xFF5E5449),
         border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant,
+            2.dp,
+            androidx.compose.ui.graphics.Color(0xFFB0B0B0),
         ),
         modifier = Modifier
             .fillMaxWidth()
