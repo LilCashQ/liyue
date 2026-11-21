@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -58,6 +59,8 @@ import com.liyue.mctoolbox.ui.LicensesScreen
 import com.liyue.mctoolbox.ui.ToolsScreen
 import com.liyue.mctoolbox.ui.theme.LiYueTheme
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.ui.unit.dp
 
 private enum class Screen { TABS, MAP, APPS, FINDER, BEDROCK, SCRIPT, FLOWER, CONVERT, ID_TABLE, JAVA_ID_TABLE, COMMANDS, ART_TEXT, RAW_TEXT, SELECTOR, EXECUTE_FIX, TYPING, LICENSES, DEBUG, AUTH }
 private enum class Tab { LAUNCH, TOOLS, ABOUT }
@@ -259,24 +262,37 @@ private fun MainTabs(
 ) {
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp,
+            ) {
+                val barColors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 NavigationBarItem(
                     selected = tab == Tab.LAUNCH,
                     onClick = { onTabChange(Tab.LAUNCH) },
                     icon = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
                     label = { Text("启动游戏") },
+                    colors = barColors,
                 )
                 NavigationBarItem(
                     selected = tab == Tab.TOOLS,
                     onClick = { onTabChange(Tab.TOOLS) },
                     icon = { Icon(Icons.Filled.List, contentDescription = null) },
                     label = { Text("工具") },
+                    colors = barColors,
                 )
                 NavigationBarItem(
                     selected = tab == Tab.ABOUT,
                     onClick = { onTabChange(Tab.ABOUT) },
                     icon = { Icon(Icons.Filled.Info, contentDescription = null) },
                     label = { Text("关于") },
+                    colors = barColors,
                 )
             }
         },

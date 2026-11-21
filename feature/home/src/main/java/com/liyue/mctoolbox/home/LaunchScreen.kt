@@ -56,6 +56,12 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Color
 
 /**
  * 里悦启动器（Minecraft 基岩版）的安装与启动入口。
@@ -71,7 +77,7 @@ object LauncherBridge {
     private const val APK_NAME = "liyue-launcher-1.6.1.apk"
     const val VERSION_NAME = "1.6.1"
     const val VERSION_CODE = 59596200L
-    private const val APK_SHA256 = "99af13687fc80bfb5d50026ca41a14c3001457487516257f12f0beba3f9e7457"
+    private const val APK_SHA256 = "c1abcc179cd5fb9e567220b09d7b5c57d47e8285c0e37ca7eb923efa332407c6"
 
     const val DOWNLOAD_URL =
         "https://github.com/LilCashQ/liyue/releases/download/launcher-1.6.1/liyue-launcher-1.6.1-arm64.apk"
@@ -239,11 +245,12 @@ fun LaunchScreen(modifier: Modifier = Modifier) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(20.dp))
         Text(
             text = "启动游戏",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.3).sp,
         )
         Spacer(Modifier.height(6.dp))
         Text(
@@ -310,26 +317,13 @@ private fun HeroLaunchCard(
 ) {
     val installed = installedVersion != null
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(18.dp)) {
+        Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(26.dp),
-                    )
-                }
+                CubeMark(size = 52.dp, corner = 16.dp)
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
@@ -461,9 +455,10 @@ private fun InfoCard(title: String, body: String) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(18.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
@@ -482,3 +477,42 @@ private fun InfoCard(title: String, body: String) {
 
 /** 里悦内部的「启动器是否可用」查询，给其他页面复用。 */
 fun launcherInstalled(context: Context): Boolean = LauncherBridge.isInstalled(context)
+
+/** 里悦的几何标记：蓝色圆角底 + 白色等距立方体，和桌面图标一致。 */
+@Composable
+internal fun CubeMark(size: Dp = 52.dp, corner: Dp = 16.dp) {
+    Canvas(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(corner))
+            .background(MaterialTheme.colorScheme.primary),
+    ) {
+        val w = this.size.width
+        val h = this.size.height
+        fun p(x: Float, y: Float) = Offset(w * x, h * y)
+        val top = Path().apply {
+            moveTo(p(0.5f, 0.23f).x, p(0.5f, 0.23f).y)
+            lineTo(p(0.74f, 0.36f).x, p(0.74f, 0.36f).y)
+            lineTo(p(0.5f, 0.49f).x, p(0.5f, 0.49f).y)
+            lineTo(p(0.26f, 0.36f).x, p(0.26f, 0.36f).y)
+            close()
+        }
+        val left = Path().apply {
+            moveTo(p(0.26f, 0.36f).x, p(0.26f, 0.36f).y)
+            lineTo(p(0.5f, 0.49f).x, p(0.5f, 0.49f).y)
+            lineTo(p(0.5f, 0.81f).x, p(0.5f, 0.81f).y)
+            lineTo(p(0.26f, 0.68f).x, p(0.26f, 0.68f).y)
+            close()
+        }
+        val right = Path().apply {
+            moveTo(p(0.74f, 0.36f).x, p(0.74f, 0.36f).y)
+            lineTo(p(0.5f, 0.49f).x, p(0.5f, 0.49f).y)
+            lineTo(p(0.5f, 0.81f).x, p(0.5f, 0.81f).y)
+            lineTo(p(0.74f, 0.68f).x, p(0.74f, 0.68f).y)
+            close()
+        }
+        drawPath(top, Color.White.copy(alpha = 1f))
+        drawPath(left, Color.White.copy(alpha = 0.82f))
+        drawPath(right, Color.White.copy(alpha = 0.64f))
+    }
+}
