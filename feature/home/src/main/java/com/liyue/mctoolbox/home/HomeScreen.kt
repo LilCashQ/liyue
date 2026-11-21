@@ -406,19 +406,21 @@ private fun ToolCard(tool: ToolEntry, onClick: () -> Unit) {
     val scale by animateFloatAsState(if (pressed) 0.972f else 1f, label = "cardPress")
     val enabled = tool.available
 
-    Surface(
+    PixelPanel(
         modifier = Modifier
             .fillMaxWidth()
             .height(118.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-            },
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        onClick = { if (enabled) onClick() },
-        interactionSource = interaction,
+            }
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            ),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
     ) {
         Column(modifier = Modifier.padding(15.dp)) {
             Icon(

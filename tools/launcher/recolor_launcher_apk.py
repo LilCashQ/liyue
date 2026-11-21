@@ -24,28 +24,34 @@ STORE_PASS = "liyue2026"
 
 # resource entry name in the APK -> our replacement file
 ICON_MAP = {
-    "res/FU.png": ICON_DIR / "leaf_xxxhdpi.png",
-    "res/p7.png": ICON_DIR / "leaf_mdpi.png",
-    "res/Ip.png": ICON_DIR / "leaf_hdpi.png",
-    "res/OG.png": ICON_DIR / "leaf_xhdpi.png",
-    "res/xY.png": ICON_DIR / "leaf_xxhdpi.png",
-    "res/Hv.png": ICON_DIR / "leaf_xxxhdpi.png",
-    "res/9w.png": ICON_DIR / "leaf_mdpi.png",
-    "res/yn.png": ICON_DIR / "leaf_hdpi.png",
-    "res/FS.png": ICON_DIR / "leaf_xhdpi.png",
-    "res/RJ.png": ICON_DIR / "leaf_xxhdpi.png",
-    "res/o-.png": ICON_DIR / "leaf_xxxhdpi.png",
+    "res/FU.png": ICON_DIR / "chest_xxxhdpi.png",
+    "res/p7.png": ICON_DIR / "chest_mdpi.png",
+    "res/Ip.png": ICON_DIR / "chest_hdpi.png",
+    "res/OG.png": ICON_DIR / "chest_xhdpi.png",
+    "res/xY.png": ICON_DIR / "chest_xxhdpi.png",
+    "res/Hv.png": ICON_DIR / "chest_xxxhdpi.png",
+    "res/9w.png": ICON_DIR / "chest_mdpi.png",
+    "res/yn.png": ICON_DIR / "chest_hdpi.png",
+    "res/FS.png": ICON_DIR / "chest_xhdpi.png",
+    "res/RJ.png": ICON_DIR / "chest_xxhdpi.png",
+    "res/o-.png": ICON_DIR / "chest_xxxhdpi.png",
 }
+
+# 字体替换：启动器内置思源黑体 -> 像素字体 Zpix
+FONT_ENTRY = "res/xZ.ttf"
+FONT_SRC = ICON_DIR / "zpix.ttf"
 
 # green Material palette -> LiYue black/white + single blue accent
 COLOR_MAP = {
-    0xFF4AE0A0: 0xFF1A73E8,   # 强调绿 -> 谷歌蓝
-    0xFF1B5E20: 0xFF202124,   # 深绿 -> 墨黑
-    0xFFE8F5E9: 0xFFF1F3F4,   # 浅绿底 -> 谷歌灰
-    0xFF008577: 0xFF202124,   # 青绿 -> 墨黑
-    0xFF03DAC6: 0xFF1A73E8,   # 次级青 -> 谷歌蓝
-    0xFFF6F3EA: 0xFFFFFFFF,   # 米色自适应底 -> 纯白
-    0xFF121212: 0xFF202124,   # 深灰对齐
+    0xFF4AE0A0: 0xFF5FA83C,   # 强调 -> 草方块绿
+    0xFF1B5E20: 0xFF3F3F3F,   # 深绿 -> GUI 深灰
+    0xFFE8F5E9: 0xFFC6C6C6,   # 浅绿底 -> GUI 面板灰
+    0xFF008577: 0xFF4A8A2C,   # 青绿 -> 深草绿
+    0xFF03DAC6: 0xFF7BC753,   # 次级青 -> 亮草绿
+    0xFFF6F3EA: 0xFF4C9A2A,   # 米色底 -> 草方块背景
+    0xFF121212: 0xFF2B2B2B,   # 深灰
+    0xFF1A73E8: 0xFF5FA83C,   # 上一版蓝色 -> 草绿
+    0xFF202124: 0xFF3F3F3F,
 }
 
 
@@ -85,6 +91,8 @@ def main() -> None:
                     data, hits = recolour_arsc(data)
                 elif info.filename in ICON_MAP:
                     data = ICON_MAP[info.filename].read_bytes()
+                elif info.filename == FONT_ENTRY:
+                    data = FONT_SRC.read_bytes()
                 elif info.filename.startswith("META-INF/") and info.filename.endswith((".RSA", ".SF", ".MF")):
                     continue
                 zi = zipfile.ZipInfo(info.filename, date_time=info.date_time)

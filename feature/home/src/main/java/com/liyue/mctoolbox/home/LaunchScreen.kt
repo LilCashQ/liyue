@@ -77,7 +77,7 @@ object LauncherBridge {
     private const val APK_NAME = "liyue-launcher-1.6.1.apk"
     const val VERSION_NAME = "1.6.1"
     const val VERSION_CODE = 59596200L
-    private const val APK_SHA256 = "c1abcc179cd5fb9e567220b09d7b5c57d47e8285c0e37ca7eb923efa332407c6"
+    private const val APK_SHA256 = "7cfebc583354030f09be1a2788cacf71bcbf4492d26dacc29e140c45ee3e5874"
 
     const val DOWNLOAD_URL =
         "https://github.com/LilCashQ/liyue/releases/download/launcher-1.6.1/liyue-launcher-1.6.1-arm64.apk"
@@ -416,23 +416,12 @@ private fun HeroLaunchCard(
 
 @Composable
 private fun LaunchActionButton(text: String, onClick: () -> Unit) {
-    val interaction = remember { MutableInteractionSource() }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .clip(RoundedCornerShape(50))
-            .background(androidx.compose.ui.graphics.Color(0xFF111417))
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleSmall,
-            color = androidx.compose.ui.graphics.Color.White,
-            fontWeight = FontWeight.Medium,
-        )
-    }
+    PixelButton(
+        text = text,
+        onClick = onClick,
+        primary = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -452,13 +441,8 @@ private fun TextLink(text: String, onClick: () -> Unit) {
 
 @Composable
 private fun InfoCard(title: String, body: String) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(18.dp)) {
+    PixelPanel(modifier = Modifier.fillMaxWidth()) {
+        Column {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
