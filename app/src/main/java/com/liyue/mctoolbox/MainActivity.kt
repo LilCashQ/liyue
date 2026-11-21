@@ -266,15 +266,15 @@ private fun MainTabs(
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                containerColor = androidx.compose.ui.graphics.Color(0xFF4A423A),
                 tonalElevation = 0.dp,
             ) {
                 val barColors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = androidx.compose.ui.graphics.Color(0xFF6FBF3F),
                     indicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedIconColor = androidx.compose.ui.graphics.Color(0xFFB8AFA4),
+                    unselectedTextColor = androidx.compose.ui.graphics.Color(0xFFB8AFA4),
                 )
                 NavigationBarItem(
                     selected = tab == Tab.LAUNCH,

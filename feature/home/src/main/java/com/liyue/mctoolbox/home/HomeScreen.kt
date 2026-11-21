@@ -1,8 +1,9 @@
 package com.liyue.mctoolbox.home
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -17,24 +18,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,448 +36,181 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.animation.core.animateFloatAsState
 
+private val Bg = Color(0xFF2B2B2B)
+private val CardFill = Color(0xFF4A423A)
+private val CardEdge = Color(0xFF8A8A8A)
+private val AccentGreen = Color(0xFF6FBF3F)
+private val TextMain = Color(0xFFF2F2F2)
+private val TextSub = Color(0xFFB8AFA4)
+
+/** 像素风工具页：大标题 + 右上搜索，2 列像素卡片。 */
 @Composable
 fun HomeScreen(
-    recentToolIds: String?,
-    frequentToolIds: String? = null,
     onOpenTool: (ToolEntry) -> Unit,
+    modifier: Modifier = Modifier,
+    recentToolIds: String? = null,
+    frequentToolIds: String? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val tools = remember(query) {
-        val keyword = query.trim()
-        // 查找器搬进了种子地图的顶栏，首页不再重复放一张卡
-        val homeTools = ToolCatalog.all.filter { it.id != ToolCatalog.STRUCTURE_FINDER }
-        if (keyword.isEmpty()) {
-            homeTools
-        } else {
-            homeTools.filter {
-                it.title.contains(keyword, ignoreCase = true) ||
-                    it.subtitle.contains(keyword, ignoreCase = true)
-            }
-        }
-    }
-    val recents = ToolCatalog.byIds(recentToolIds?.split(",") ?: emptyList())
-    // 常用 = 真正用过的（用够 3 次才会进这个列表），没记录就不显示这一节
-    val frequent = remember(frequentToolIds) {
-        ToolCatalog.byIds(frequentToolIds?.split(",") ?: emptyList())
+        val q = query.trim()
+        if (q.isEmpty()) ToolCatalog.all
+        else ToolCatalog.all.filter { it.title.contains(q, true) || it.subtitle.contains(q, true) }
     }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 32.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .background(Bg),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Header(version = appVersion())
-        }
-
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            SearchField(query) { query = it }
-        }
-
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            HeroRow(onOpenTool = onOpenTool)
-        }
-
-        if (recents.isNotEmpty() && query.isBlank()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                SectionTitle("最近使用", trailing = "${recents.size}")
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                QuickRow(recents, onOpenTool)
-            }
-        }
-
-        if (frequent.isNotEmpty() && query.isBlank()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                SectionTitle("常用功能", trailing = "${frequent.size}")
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                QuickRow(frequent, onOpenTool)
+        item(span = { GridItemSpan(2) }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "里悦工具箱",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextMain,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "群系 · 结构 · 种子",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextSub,
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                PixelSearch(query) { query = it }
             }
         }
-
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            SectionTitle(
-                if (query.isBlank()) "全部工具" else "搜索结果",
-                trailing = "${tools.size}",
-            )
-        }
-
-        if (tools.isEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = "没有匹配「$query」的工具",
-                    modifier = Modifier.padding(vertical = 28.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        } else {
-            items(tools) { tool -> ToolCard(tool) { onOpenTool(tool) } }
+        items(tools, key = { it.id }) { tool ->
+            ToolTile(tool) { if (tool.available) onOpenTool(tool) }
         }
     }
 }
 
 @Composable
-private fun Header(version: String) {
-    Column(modifier = Modifier.padding(bottom = 4.dp)) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = "里悦",
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-1).sp,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = version,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = "群系、结构、种子，全在本机算",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
-}
-
-@Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
-    TextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
-        placeholder = {
-            Text(
-                "搜索工具",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.Search,
-                contentDescription = null,
-                modifier = Modifier.size(19.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(0.dp),
-        textStyle = MaterialTheme.typography.bodyMedium,
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent,
-        ),
-    )
-}
-
-@Composable
-private fun SectionTitle(title: String, trailing: String? = null) {
+private fun PixelSearch(query: String, onChange: (String) -> Unit) {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 20.dp, bottom = 6.dp),
+            .width(168.dp)
+            .height(38.dp)
+            .background(Color(0xFF1F1F1F))
+            .border(2.dp, CardEdge)
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-0.2).sp,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f),
+        Icon(
+            imageVector = Icons.Filled.Search,
+            contentDescription = null,
+            tint = TextSub,
+            modifier = Modifier.size(16.dp),
         )
-        if (trailing != null) {
-            Text(
-                text = trailing,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun HeroRow(onOpenTool: (ToolEntry) -> Unit) {
-    val seedMap = ToolCatalog.byId(ToolCatalog.SEED_MAP)
-    val finder = ToolCatalog.byId(ToolCatalog.STRUCTURE_FINDER)
-    val flower = ToolCatalog.byId(ToolCatalog.FLOWER_FARM)
-    val bedrock = ToolCatalog.byId(ToolCatalog.BEDROCK_LIBRARY)
-    val pageWidth = (LocalConfiguration.current.screenWidthDp * 0.78f).dp
-
-    LazyRow(
-        contentPadding = PaddingValues(top = 12.dp, end = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        if (seedMap != null) {
-            item {
-                HeroCard(
-                    title = "种子地图",
-                    subtitle = "真实群系、结构、地表高度",
-                    imageRes = R.drawable.hero_seed_map,
-                    onClick = { onOpenTool(seedMap) },
-                    modifier = Modifier.width(pageWidth),
-                )
-            }
-        }
-        if (finder != null) {
-            item {
-                HeroCard(
-                    title = "查找器",
-                    subtitle = "36 个 Chunkbase 玩法一次装齐",
-                    imageRes = R.drawable.hero_finder,
-                    onClick = { onOpenTool(finder) },
-                    modifier = Modifier.width(pageWidth),
-                )
-            }
-        }
-        if (flower != null) {
-            item {
-                HeroCard(
-                    title = "全花种农场",
-                    subtitle = "花林、沼泽、苍白花园同窗",
-                    imageRes = R.drawable.hero_flower,
-                    onClick = { onOpenTool(flower) },
-                    modifier = Modifier.width(pageWidth),
-                )
-            }
-        }
-        if (bedrock != null) {
-            item {
-                HeroCard(
-                    title = "基岩版版本库",
-                    subtitle = "639 个版本，网盘直达",
-                    imageRes = R.drawable.hero_bedrock,
-                    onClick = { onOpenTool(bedrock) },
-                    modifier = Modifier.width(pageWidth),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeroCard(
-    title: String,
-    subtitle: String,
-    imageRes: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.985f else 1f, label = "heroPress")
-
-    Surface(
-        modifier = modifier
-            .height(180.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            },
-        shape = RoundedCornerShape(0.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        onClick = onClick,
-        interactionSource = interaction,
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Image(
-                painter = painterResource(imageRes),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to Color.Transparent,
-                            0.45f to Color.Black.copy(alpha = 0.10f),
-                            1f to Color.Black.copy(alpha = 0.72f),
-                        ),
-                    ),
-            )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp),
-            ) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-0.3).sp,
-                )
-                Text(
-                    text = subtitle,
-                    color = Color.White.copy(alpha = 0.82f),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickRow(tools: List<ToolEntry>, onOpenTool: (ToolEntry) -> Unit) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
-    ) {
-        items(tools) { tool ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .width(66.dp)
-                    .clip(RoundedCornerShape(0.dp))
-                    .clickable(enabled = tool.available) { onOpenTool(tool) }
-                    .padding(vertical = 4.dp),
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(0.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.size(52.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        val iconRes = PixelIcons.tool(tool.id)
-                        if (iconRes != null) {
-                            Image(
-                                painter = painterResource(iconRes),
-                                contentDescription = tool.title,
-                                modifier = Modifier.size(36.dp),
-                                colorFilter = if (tool.available) null else ColorFilter.tint(
-                                    androidx.compose.ui.graphics.Color(0xFF6E6E6E)
-                                ),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = tool.icon,
-                                contentDescription = tool.title,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
-                    }
+        Spacer(Modifier.width(6.dp))
+        BasicTextField(
+            value = query,
+            onValueChange = onChange,
+            singleLine = true,
+            textStyle = TextStyle(color = TextMain, fontSize = 13.sp),
+            cursorBrush = SolidColor(AccentGreen),
+            modifier = Modifier.weight(1f),
+            decorationBox = { inner ->
+                if (query.isEmpty()) {
+                    Text("搜索工具…", color = TextSub, fontSize = 13.sp)
                 }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = tool.title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (tool.available) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
+                inner()
+            },
+        )
     }
 }
 
 @Composable
-private fun ToolCard(tool: ToolEntry, onClick: () -> Unit) {
+private fun ToolTile(tool: ToolEntry, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.972f else 1f, label = "cardPress")
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, label = "tile")
     val enabled = tool.available
+    val iconRes = PixelIcons.tool(tool.id)
 
-    PixelPanel(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(118.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
+            .height(132.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .drawBehind {
+                val w = size.width
+                val h = size.height
+                val e = 2.dp.toPx()
+                val c = 7.dp.toPx()
+                drawRect(CardEdge, size = size)
+                drawRect(if (enabled) CardFill else Color(0xFF3A342E),
+                    topLeft = Offset(e, e), size = Size(w - e * 2, h - e * 2))
+                // 左上与右下的直角装饰
+                drawRect(if (enabled) AccentGreen else Color(0xFF5A5A5A), size = Size(c, c))
+                drawRect(if (enabled) AccentGreen else Color(0xFF5A5A5A),
+                    topLeft = Offset(w - c, h - c), size = Size(c, c))
+                drawRect(Color(0x33FFFFFF), topLeft = Offset(e, e), size = Size(w - e * 2, e))
             }
             .clickable(
                 interactionSource = interaction,
                 indication = null,
                 enabled = enabled,
                 onClick = onClick,
-            ),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
+            )
+            .padding(14.dp),
     ) {
-        Column(modifier = Modifier.padding(15.dp)) {
-            val iconRes = PixelIcons.tool(tool.id)
+        Column(Modifier.fillMaxSize()) {
             if (iconRes != null) {
                 Image(
                     painter = painterResource(iconRes),
                     contentDescription = null,
                     modifier = Modifier.size(34.dp),
-                    colorFilter = if (enabled) null else ColorFilter.tint(
-                        androidx.compose.ui.graphics.Color(0xFF6E6E6E)
-                    ),
+                    colorFilter = if (enabled) null else ColorFilter.tint(Color(0xFF7A7A7A)),
                 )
             } else {
                 Icon(
                     imageVector = tool.icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp),
+                    tint = AccentGreen,
+                    modifier = Modifier.size(28.dp),
                 )
             }
             Spacer(Modifier.weight(1f))
             Text(
                 text = tool.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Medium,
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (enabled) TextMain else Color(0xFF9A938C),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(3.dp))
             Text(
                 text = if (enabled) tool.subtitle else "即将上线",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (enabled) TextSub else Color(0xFFD9A441),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-    }
-}
-
-/** Version chip text, read from the installed package instead of a constant. */
-@Composable
-private fun appVersion(): String {
-    val context = LocalContext.current
-    return remember(context) {
-        runCatching {
-            "v" + context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        }.getOrDefault("v?")
     }
 }
