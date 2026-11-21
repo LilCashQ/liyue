@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.ColorFilter
 
 @Composable
 fun HomeScreen(
@@ -376,13 +377,24 @@ private fun QuickRow(tools: List<ToolEntry>, onOpenTool: (ToolEntry) -> Unit) {
                     modifier = Modifier.size(52.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = tool.icon,
-                            contentDescription = tool.title,
-                            tint = if (tool.available) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp),
-                        )
+                        val iconRes = PixelIcons.tool(tool.id)
+                        if (iconRes != null) {
+                            Image(
+                                painter = painterResource(iconRes),
+                                contentDescription = tool.title,
+                                modifier = Modifier.size(36.dp),
+                                colorFilter = if (tool.available) null else ColorFilter.tint(
+                                    androidx.compose.ui.graphics.Color(0xFF6E6E6E)
+                                ),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = tool.icon,
+                                contentDescription = tool.title,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(6.dp))
@@ -423,16 +435,24 @@ private fun ToolCard(tool: ToolEntry, onClick: () -> Unit) {
         contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
     ) {
         Column(modifier = Modifier.padding(15.dp)) {
-            Icon(
-                imageVector = tool.icon,
-                contentDescription = null,
-                tint = if (enabled) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.size(22.dp),
-            )
+            val iconRes = PixelIcons.tool(tool.id)
+            if (iconRes != null) {
+                Image(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(34.dp),
+                    colorFilter = if (enabled) null else ColorFilter.tint(
+                        androidx.compose.ui.graphics.Color(0xFF6E6E6E)
+                    ),
+                )
+            } else {
+                Icon(
+                    imageVector = tool.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
             Spacer(Modifier.weight(1f))
             Text(
                 text = tool.title,
