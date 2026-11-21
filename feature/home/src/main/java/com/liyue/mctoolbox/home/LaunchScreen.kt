@@ -2,6 +2,9 @@ package com.liyue.mctoolbox.home
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,7 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,6 +55,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 /**
  * 里悦启动器（Minecraft 基岩版）的安装与启动入口。
@@ -61,17 +68,33 @@ object LauncherBridge {
     const val ACTIVITY = "org.levimc.launcher.ui.activities.SplashActivity"
     const val ACTION_START = "com.liyue.launcher.action.START"
 
-    private const val APK_NAME = "liyue-launcher.apk"
+    private const val APK_NAME = "liyue-launcher-1.6.1.apk"
+    const val VERSION_NAME = "1.6.1"
+    const val VERSION_CODE = 59596200L
+    private const val APK_SHA256 = "99af13687fc80bfb5d50026ca41a14c3001457487516257f12f0beba3f9e7457"
 
     const val DOWNLOAD_URL =
-        "https://github.com/LilCashQ/liyue/releases/download/launcher-1.6.0/liyue-launcher-1.6.0-arm64.apk"
+        "https://github.com/LilCashQ/liyue/releases/download/launcher-1.6.1/liyue-launcher-1.6.1-arm64.apk"
 
-    fun versionName(context: Context): String? = runCatching {
-        @Suppress("DEPRECATION")
-        context.packageManager.getPackageInfo(PACKAGE, 0).versionName
+    data class InstalledVersion(val name: String, val code: Long)
+
+    fun installedVersion(context: Context): InstalledVersion? = runCatching {
+        val info = if (Build.VERSION.SDK_INT >= 33) {
+            context.packageManager.getPackageInfo(PACKAGE, PackageManager.PackageInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(PACKAGE, 0)
+        }
+        val code = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+        InstalledVersion(info.versionName ?: "?", code)
     }.getOrNull()
 
-    fun isInstalled(context: Context): Boolean = versionName(context) != null
+    fun versionName(context: Context): String? = installedVersion(context)?.name
+
+    fun isInstalled(context: Context): Boolean = installedVersion(context) != null
+
+    fun needsUpdate(context: Context): Boolean =
+        installedVersion(context)?.code?.let { it < VERSION_CODE } ?: false
 
     /** 返回 null 表示成功，否则返回给用户看的失败原因。 */
     fun launch(context: Context): String? {
@@ -112,32 +135,44 @@ object LauncherBridge {
         withContext(Dispatchers.IO) {
             val target = apkFile(context)
             target.parentFile?.mkdirs()
-            if (target.exists()) target.delete()
+            val temp = File(target.parentFile, "${target.name}.download")
+            temp.delete()
             val conn = (URL(DOWNLOAD_URL).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 20_000
-                readTimeout = 60_000
+                readTimeout = 90_000
                 instanceFollowRedirects = true
                 setRequestProperty("User-Agent", "LiYue-Android")
             }
             try {
                 conn.connect()
-                if (conn.responseCode !in 200..299) {
-                    error("下载失败：HTTP ${conn.responseCode}")
-                }
+                if (conn.responseCode !in 200..299) error("下载失败：HTTP ${conn.responseCode}")
                 val total = conn.contentLengthLong
+                val sha256 = MessageDigest.getInstance("SHA-256")
                 conn.inputStream.use { input ->
-                    target.outputStream().use { output ->
+                    temp.outputStream().use { output ->
                         val buffer = ByteArray(1 shl 16)
                         var copied = 0L
                         while (true) {
                             val read = input.read(buffer)
-                            if (read <= 0) break
+                            if (read < 0) break
                             output.write(buffer, 0, read)
+                            sha256.update(buffer, 0, read)
                             copied += read
                             if (total > 0) onProgress((copied.toFloat() / total).coerceIn(0f, 1f))
                         }
                     }
                 }
+                if (total > 0 && temp.length() != total) {
+                    error("下载不完整：${temp.length()} / $total 字节")
+                }
+                val digest = sha256.digest().joinToString("") { "%02x".format(it) }
+                if (!digest.equals(APK_SHA256, ignoreCase = true)) {
+                    error("安装包校验失败，请重新下载")
+                }
+                android.system.Os.rename(temp.absolutePath, target.absolutePath)
+            } catch (t: Throwable) {
+                temp.delete()
+                throw t
             } finally {
                 conn.disconnect()
             }
@@ -161,7 +196,7 @@ object LauncherBridge {
 }
 
 private sealed interface LaunchState {
-    data class Idle(val installed: Boolean, val version: String?) : LaunchState
+    data class Idle(val installed: Boolean, val version: String?, val versionCode: Long?) : LaunchState
     data class Downloading(val progress: Float) : LaunchState
     data class Ready(val apk: File) : LaunchState
     data class Failed(val message: String) : LaunchState
@@ -171,23 +206,32 @@ private sealed interface LaunchState {
 fun LaunchScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var installedVersion by remember { mutableStateOf(LauncherBridge.versionName(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var installed by remember { mutableStateOf(LauncherBridge.installedVersion(context)) }
     var state by remember {
         mutableStateOf<LaunchState>(
-            LaunchState.Idle(installedVersion != null, installedVersion),
+            LaunchState.Idle(installed != null, installed?.name, installed?.code),
         )
     }
 
-    // 从系统安装器返回时重新读一次安装状态
-    LaunchedEffect(Unit) {
-        installedVersion = LauncherBridge.versionName(context)
-        state = LaunchState.Idle(installedVersion != null, installedVersion)
+    fun refresh() {
+        installed = LauncherBridge.installedVersion(context)
+        if (state !is LaunchState.Downloading) {
+            state = LaunchState.Idle(installed != null, installed?.name, installed?.code)
+        }
     }
 
-    fun refresh() {
-        installedVersion = LauncherBridge.versionName(context)
-        state = LaunchState.Idle(installedVersion != null, installedVersion)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    val installedVersion = installed?.name
+    val installedCode = installed?.code
+    val updateAvailable = installedCode != null && installedCode < LauncherBridge.VERSION_CODE
 
     Column(
         modifier = modifier
@@ -211,6 +255,8 @@ fun LaunchScreen(modifier: Modifier = Modifier) {
 
         HeroLaunchCard(
             installedVersion = installedVersion,
+            updateAvailable = updateAvailable,
+            cachedApk = LauncherBridge.apkFile(context).takeIf { it.isFile },
             state = state,
             onLaunch = {
                 val problem = LauncherBridge.launch(context)
@@ -239,8 +285,8 @@ fun LaunchScreen(modifier: Modifier = Modifier) {
 
         Spacer(Modifier.height(14.dp))
         InfoCard(
-            title = "它不在桌面上",
-            body = "启动器装好后不会出现在桌面和应用列表里，只有从这里点「开始游戏」才会打开。想彻底删掉，去系统设置 → 应用 → 里悦启动器 卸载。",
+            title = "从里悦启动游戏",
+            body = "启动器不会创建桌面图标；安装和卸载可在系统设置 → 应用 → 里悦启动器中管理。装好后可从这里点「开始游戏」打开。",
         )
         Spacer(Modifier.height(10.dp))
         InfoCard(
@@ -254,6 +300,8 @@ fun LaunchScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun HeroLaunchCard(
     installedVersion: String?,
+    updateAvailable: Boolean,
+    cachedApk: File?,
     state: LaunchState,
     onLaunch: () -> Unit,
     onDownload: () -> Unit,
@@ -290,7 +338,9 @@ private fun HeroLaunchCard(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = if (installed) "已安装 · v$installedVersion" else "未安装",
+                        text = if (installed) {
+                            "已安装 · v$installedVersion${if (updateAvailable) " · 有更新" else ""}"
+                        } else "未安装",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (installed) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -350,13 +400,18 @@ private fun HeroLaunchCard(
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             TextLink("重新检测", onRefresh)
-                            TextLink("重新下载安装包", onDownload)
+                            TextLink(
+                                if (updateAvailable) "更新启动器" else "重新下载安装包",
+                                onDownload,
+                            )
+                            if (cachedApk != null) TextLink("修复安装", { onInstallCached(cachedApk) })
                         }
                     } else {
                         LaunchActionButton(text = "下载并安装启动器", onClick = onDownload)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             TextLink("我已经装过了", onRefresh)
+                            if (cachedApk != null) TextLink("继续安装", { onInstallCached(cachedApk) })
                         }
                     }
                 }
