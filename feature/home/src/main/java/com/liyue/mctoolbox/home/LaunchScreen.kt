@@ -73,12 +73,29 @@ object LauncherBridge {
 
     fun isInstalled(context: Context): Boolean = versionName(context) != null
 
-    fun launch(context: Context): Boolean {
-        val intent = Intent(ACTION_START).apply {
+    /** 返回 null 表示成功，否则返回给用户看的失败原因。 */
+    fun launch(context: Context): String? {
+        val explicit = Intent(ACTION_START).apply {
             setClassName(PACKAGE, ACTIVITY)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        return runCatching { context.startActivity(intent) }.isSuccess
+        val explicitError = runCatching { context.startActivity(explicit) }.exceptionOrNull()
+        if (explicitError == null) return null
+
+        val fallback = context.packageManager.getLaunchIntentForPackage(PACKAGE)
+        if (fallback != null) {
+            fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val fallbackError = runCatching { context.startActivity(fallback) }.exceptionOrNull()
+            if (fallbackError == null) return null
+            return describe(fallbackError)
+        }
+        return describe(explicitError)
+    }
+
+    private fun describe(error: Throwable): String = when (error) {
+        is android.content.ActivityNotFoundException -> "系统里没有这个入口，启动器可能没装好，重新安装一次"
+        is SecurityException -> "系统拦住了这次跳转（${error.message ?: "SecurityException"}）"
+        else -> error.message ?: error::class.java.simpleName
     }
 
     fun apkFile(context: Context): File = File(File(context.filesDir, "launcher"), APK_NAME)
@@ -188,9 +205,8 @@ fun LaunchScreen(modifier: Modifier = Modifier) {
             installedVersion = installedVersion,
             state = state,
             onLaunch = {
-                if (!LauncherBridge.launch(context)) {
-                    state = LaunchState.Failed("没找到启动器，先安装一下")
-                }
+                val problem = LauncherBridge.launch(context)
+                if (problem != null) state = LaunchState.Failed(problem)
             },
             onDownload = {
                 state = LaunchState.Downloading(0f)
