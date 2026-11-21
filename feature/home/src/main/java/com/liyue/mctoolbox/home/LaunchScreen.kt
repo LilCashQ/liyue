@@ -242,6 +242,7 @@ fun LaunchScreen(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(Color(0xFF3E3B37))
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
@@ -251,12 +252,13 @@ fun LaunchScreen(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = (-0.3).sp,
+            color = Color(0xFFF2F2F2),
         )
         Spacer(Modifier.height(6.dp))
         Text(
             text = "用里悦启动器跑基岩版：免安装导入官方包，多版本隔离，能挂载 SO 模块。",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color(0xFFCFC6BA),
         )
         Spacer(Modifier.height(18.dp))
 

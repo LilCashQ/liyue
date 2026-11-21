@@ -19,9 +19,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-internal val BevelLight = Color(0xFFFFFFFF)
-internal val BevelDark = Color(0xFF555555)
-internal val SlotShadow = Color(0xFF373737)
+internal val BevelLight = Color(0x33FFFFFF)
+internal val BevelDark = Color(0xFFB0B0B0)
+internal val SlotShadow = Color(0xFF2E2B27)
 
 /** 《我的世界》GUI 面板：灰底 + 左上高光 + 右下阴影 + 外描边。 */
 @Composable
@@ -30,7 +30,7 @@ fun PixelPanel(
     contentPadding: PaddingValues = PaddingValues(14.dp),
     content: @Composable () -> Unit,
 ) {
-    val fill = MaterialTheme.colorScheme.surface
+    val fill = Color(0xFF5E5449)
     Box(
         modifier = modifier
             .drawBehind {
@@ -41,6 +41,10 @@ fun PixelPanel(
                 drawRect(BevelLight.copy(alpha = 0.9f), topLeft = Offset(b, b), size = Size(b, size.height - b * 2))
                 drawRect(BevelDark.copy(alpha = 0.8f), topLeft = Offset(b, size.height - b * 2), size = Size(size.width - b * 2, b))
                 drawRect(BevelDark.copy(alpha = 0.8f), topLeft = Offset(size.width - b * 2, b), size = Size(b, size.height - b * 2))
+                val c = 7.dp.toPx()
+                val green = Color(0xFF7ED04A)
+                drawRect(green, size = Size(c, c))
+                drawRect(green, topLeft = Offset(size.width - c, size.height - c), size = Size(c, c))
             }
             .padding(contentPadding),
     ) {
@@ -60,10 +64,10 @@ fun PixelButton(
     val interaction = remember { MutableInteractionSource() }
     val face = when {
         !enabled -> Color(0xFF8B8B8B)
-        primary -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.surface
+        primary -> Color(0xFF7ED04A)
+        else -> Color(0xFF4A4540)
     }
-    val textColor = if (primary || !enabled) Color.White else MaterialTheme.colorScheme.onSurface
+    val textColor = if (primary) Color(0xFF1E1E1E) else if (!enabled) Color(0xFF9A9A9A) else Color(0xFFF2F2F2)
     Box(
         modifier = modifier
             .background(BevelDark)
